@@ -222,6 +222,9 @@ func (s *Store) Unit(ctx context.Context, id int64, withText bool) (*Unit, error
 func (s *Store) SetStatus(ctx context.Context, unitID int64, status string) error {
 	q := `UPDATE progress SET status = ? WHERE unit_id = ?`
 	switch status {
+	case StatusNotStarted, StatusReading:
+		// Unreading takes the unit out of read scope again (UI-3, DAT-5).
+		q = `UPDATE progress SET status = ?, read_at = NULL, studied_at = NULL WHERE unit_id = ?`
 	case StatusRead:
 		q = `UPDATE progress SET status = ?, read_at = COALESCE(read_at, datetime('now')) WHERE unit_id = ?`
 	case StatusStudied:
