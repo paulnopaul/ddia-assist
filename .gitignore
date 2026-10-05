@@ -1,0 +1,5 @@
+/data/
+*.epub
+*.db
+*.db-wal
+*.db-shm
