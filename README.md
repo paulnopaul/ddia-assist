@@ -16,6 +16,20 @@ flowchart LR
     Svc --- DB[(SQLite + FTS5<br/>/data volume)]
 ```
 
+## Run it
+
+```sh
+docker compose up -d          # tracker at http://localhost:8080
+```
+
+Then add this to Claude Desktop's `claude_desktop_config.json` and restart Claude Desktop:
+
+```json
+{ "mcpServers": { "ddia": { "command": "docker", "args": ["exec", "-i", "ddia", "/ddia", "mcp"] } } }
+```
+
+For local development without Docker: `go run ./cmd/ddia serve -data ./data`.
+
 ## This project is spec-driven
 
 The spec in [`docs/spec/`](docs/spec/README.md) is the source of truth. Behaviour changes

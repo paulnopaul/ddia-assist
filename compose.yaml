@@ -1,0 +1,14 @@
+# DEP-2: `docker compose up -d`, bound to localhost only, data in a named volume.
+services:
+  ddia:
+    build: .
+    image: ghcr.io/paulnopaul/ddia-assist:latest
+    container_name: ddia
+    command: ["serve"]
+    ports: ["127.0.0.1:8080:8080"]
+    volumes: ["ddia-data:/data"]
+    restart: unless-stopped
+
+volumes:
+  ddia-data:
+    name: ddia-data

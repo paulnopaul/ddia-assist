@@ -11,13 +11,13 @@ flowchart LR
 Each milestone ends with something usable. After M2 you can already study with Claude using the book's
 text. M3 adds the write-back.
 
-## Proposed stack (confirm in M0)
+## Stack (confirmed in M0)
 
 | Concern | Choice |
 |---|---|
-| Language | Go |
-| SQLite | `modernc.org/sqlite` (cgo-free, FTS5) |
-| MCP | Official Go SDK, `github.com/modelcontextprotocol/go-sdk` |
+| Language | Go 1.26 |
+| SQLite | `modernc.org/sqlite` v1.60 (cgo-free; FTS5 checked by a test) |
+| MCP | Official Go SDK, `github.com/modelcontextprotocol/go-sdk` v1.8 |
 | EPUB | `archive/zip` + `encoding/xml`, and `golang.org/x/net/html` for XHTML |
 | HTML → Markdown | `github.com/JohannesKaufmann/html-to-markdown` |
 | UI | `html/template` + htmx |
