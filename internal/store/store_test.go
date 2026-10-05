@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"io/fs"
 	"path/filepath"
 	"testing"
 )
@@ -25,8 +26,8 @@ func TestOpen_MigratesAndIsIdempotent(t *testing.T) {
 			t.Fatalf("open #%d: %v", i, err)
 		}
 		v, err := s.SchemaVersion(ctx)
-		if err != nil || v != 1 {
-			t.Fatalf("open #%d: schema version = %d, %v; want 1", i, v, err)
+		if err != nil || v != latest {
+			t.Fatalf("open #%d: schema version = %d, %v; want %d", i, v, err, latest)
 		}
 		s.Close()
 	}
@@ -56,3 +57,9 @@ func TestDriver_DEP1_HasFTS5(t *testing.T) {
 		t.Fatalf("match count = %d, %v; want 1", n, err)
 	}
 }
+
+// latest is the number of the newest migration file.
+var latest = func() int64 {
+	names, _ := fs.Glob(embedded, "migrations/*.sql")
+	return int64(len(names))
+}()

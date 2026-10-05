@@ -1,6 +1,7 @@
 # 06 Web UI
 
-Server-rendered Go templates with htmx for small interactions. There's no SPA build step.
+Server-rendered Go templates (embedded `templates/*.html`) with plain HTML forms. There's no SPA build step;
+htmx can be added later if a page needs partial updates.
 The UI is a tracker: it never shows book text beyond headings.
 
 ```mermaid

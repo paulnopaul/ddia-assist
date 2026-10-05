@@ -87,7 +87,7 @@ func runServe(ctx context.Context, args []string) error {
 	srv := mcpserver.New(st, version)
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, nil))
-	mux.Handle("/", web.Handler(st, version))
+	mux.Handle("/", web.Handler(st, version, *dataDir))
 
 	hs := &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() {
