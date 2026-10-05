@@ -19,4 +19,4 @@
 | SES | [04 Study session](04-study-session.md) | – |
 | REV | [05 Review queue](05-review-queue.md) | – |
 | UI  | [06 Web UI](06-web-ui.md) | – |
-| DEP | [07 Deployment](07-deployment.md) | – |
+| DEP | [07 Deployment](07-deployment.md) | DEP-1, DEP-2, DEP-3, DEP-4 (no tools yet), DEP-6 (M0) |
