@@ -3,16 +3,20 @@
 package web
 
 import (
+	"embed"
 	"html/template"
 	"net/http"
 
 	"github.com/paulnopaul/ddia-assist/internal/store"
 )
 
-var index = template.Must(template.New("index").Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>ddia-assist</title></head>
-<body><h1>ddia-assist</h1><p>Version {{.Version}}, schema {{.Schema}}. Nothing to track yet: EPUB import arrives in M1.</p></body></html>
-`))
+// Templates live in templates/*.html and are compiled into the binary, so the
+// image stays a single file. Each page is executed by its file name.
+//
+//go:embed templates/*.html
+var templateFS embed.FS
+
+var templates = template.Must(template.ParseFS(templateFS, "templates/*.html"))
 
 func Handler(st *store.Store, version string) http.Handler {
 	mux := http.NewServeMux()
@@ -29,9 +33,9 @@ func Handler(st *store.Store, version string) http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		index.Execute(w, struct {
+		templates.ExecuteTemplate(w, "index.html", struct {
 			Version string
-			Schema  int
+			Schema  int64
 		}{version, v})
 	})
 	return mux

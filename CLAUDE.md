@@ -18,9 +18,10 @@ The repo is public. No EPUB files, extracted text, database files or figures. `.
 ## Layout
 
 - `cmd/ddia`: the binary. `serve` runs the web UI plus HTTP MCP at `/mcp`; `mcp` runs stdio MCP for Claude Desktop.
-- `internal/store`: SQLite (WAL) and embedded migrations in `internal/store/migrations/NNNN_name.sql`.
+- `internal/store`: SQLite (WAL). Migrations are goose SQL files in `internal/store/migrations/NNNN_name.sql`
+  (with `-- +goose Up` / `-- +goose Down`), embedded and applied on start.
 - `internal/mcpserver`: the MCP server shared by both transports.
-- `internal/web`: the tracker UI.
+- `internal/web`: the tracker UI. Page templates live in `internal/web/templates/*.html` and are embedded.
 
 ## Checks
 
