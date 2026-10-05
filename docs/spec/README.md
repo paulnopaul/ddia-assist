@@ -15,8 +15,8 @@
 |---|---|---|
 | ING | [01 Ingest](01-ingest.md) | ING-1–7, ING-9–12; ING-8 partly (same file is a no-op; a different file must be imported after deleting the current book) |
 | DAT | [02 Data model](02-data-model.md) | DAT-1, DAT-4, DAT-5 (M1 tables) |
-| MCP | [03 MCP interface](03-mcp.md) | – |
+| MCP | [03 MCP interface](03-mcp.md) | MCP-1, MCP-2; read tools `get_status`, `get_unit`, `get_section`, `get_figure`, `search_book`, `mark_read` |
 | SES | [04 Study session](04-study-session.md) | – |
 | REV | [05 Review queue](05-review-queue.md) | – |
 | UI  | [06 Web UI](06-web-ui.md) | UI-1, UI-2, UI-3, UI-7 |
-| DEP | [07 Deployment](07-deployment.md) | DEP-1, DEP-2, DEP-3, DEP-4 (no tools yet), DEP-6 (M0) |
+| DEP | [07 Deployment](07-deployment.md) | DEP-1, DEP-2, DEP-3, DEP-4, DEP-6 (M0) |
