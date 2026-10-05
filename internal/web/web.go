@@ -12,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 
 	"github.com/paulnopaul/ddia-assist/internal/ingest"
@@ -25,10 +26,11 @@ import (
 var templateFS embed.FS
 
 var funcs = template.FuncMap{
-	"pages":       func(words int) int { return int(math.Round(float64(words) / 400)) },
-	"indent":      func(level int) int { return level * 16 },
-	"round":       func(f float64) int { return int(math.Round(f)) },
-	"scoreValues": func() []int { return []int{0, 1, 2, 3} },
+	"pages":            func(words int) int { return int(math.Round(float64(words) / 400)) },
+	"indent":           func(level int) int { return level * 16 },
+	"round":            func(f float64) int { return int(math.Round(f)) },
+	"settableStatuses": func() []string { return settable },
+	"scoreValues":      func() []int { return []int{0, 1, 2, 3} },
 	"percent": func(a, b int) int {
 		if b == 0 {
 			return 0
@@ -37,6 +39,17 @@ var funcs = template.FuncMap{
 	},
 	"scoreLabel": func(v int) string {
 		return [...]string{"missing", "shaky", "solid", "could teach it"}[max(0, min(v, 3))]
+	},
+	"statusAction": func(s string) string {
+		switch s {
+		case store.StatusNotStarted:
+			return "Mark unread"
+		case store.StatusReading:
+			return "Reading now"
+		case store.StatusRead:
+			return "Mark read"
+		}
+		return s
 	},
 	"statusLabel": func(s string) string {
 		switch s {
@@ -56,6 +69,10 @@ var funcs = template.FuncMap{
 func page(name string) *template.Template {
 	return template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", "templates/"+name+".html"))
 }
+
+// settable are the statuses you can set by hand (UI-3). "studied" is only
+// set by a recorded study session.
+var settable = []string{store.StatusNotStarted, store.StatusReading, store.StatusRead}
 
 type server struct {
 	st      *store.Store
@@ -236,15 +253,18 @@ func (s *server) unitStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := unitID(r)
 	if err == nil {
 		status := r.FormValue("status")
-		if status != store.StatusReading && status != store.StatusRead {
+		if !slices.Contains(settable, status) {
 			err = fmt.Errorf("status %q can't be set by hand", status)
 		} else {
 			err = s.st.SetStatus(r.Context(), id, status)
 		}
 	}
 	flash := ""
-	if r.FormValue("status") == store.StatusRead {
+	switch r.FormValue("status") {
+	case store.StatusRead:
 		flash = "Marked read. Open Claude Desktop and run /ddia-study."
+	case store.StatusNotStarted:
+		flash = "Marked unread. Claude can't see this unit until you mark it read again."
 	}
 	back(w, r, referer(r, fmt.Sprintf("/units/%d", id)), err, flash)
 }

@@ -189,3 +189,31 @@ func TestDashboardAndConcepts_UI5_UI6(t *testing.T) {
 		t.Error("UI-5: weakest concept should come first")
 	}
 }
+
+func TestMarkUnread_UI3(t *testing.T) {
+	h, st := newServer(t)
+	upload(t, h, testbook.HTMLBook())
+	ctx := context.Background()
+	u := mustUnitsM1(t, st)[0]
+	post(t, h, "/units/"+itoa(u.ID)+"/status", url.Values{"status": {"read"}})
+	if body := do(t, h, httptest.NewRequest(http.MethodGet, "/plan", nil)).Body.String(); !strings.Contains(body, "Mark unread") {
+		t.Fatal("plan page should offer Mark unread for a read unit")
+	}
+	rec := post(t, h, "/units/"+itoa(u.ID)+"/status", url.Values{"status": {"not_started"}})
+	if strings.Contains(rec.Header().Get("Location"), "error") {
+		t.Fatalf("unread: %s", rec.Header().Get("Location"))
+	}
+	got, _ := st.Unit(ctx, u.ID, false)
+	if got.Status != store.StatusNotStarted || got.ReadAt != "" || got.InScope() {
+		t.Fatalf("after unread: status=%s read_at=%q", got.Status, got.ReadAt)
+	}
+}
+
+func mustUnitsM1(t *testing.T, st *store.Store) []store.Unit {
+	t.Helper()
+	us, err := st.Units(context.Background())
+	if err != nil || len(us) == 0 {
+		t.Fatalf("units: %v", err)
+	}
+	return us
+}
