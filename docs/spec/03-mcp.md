@@ -27,7 +27,7 @@ flowchart LR
 | `get_section` | `section_id` | One section's Markdown |
 | `get_figure` | `figure_id` | The image as MCP image content |
 | `search_book` | `query`, `limit≤10` | FTS snippets with section IDs, read scope only |
-| `save_concepts` | `unit_id`, `[{name, definition, section_ref}]` | Stores the unit's key concepts. Only allowed if the unit has none yet |
+| `save_concepts` | `unit_id`, `[{name, definition, section_ref}]` | Stores the unit's 3–12 key concepts, each citing a section of that unit. Only allowed if the unit has none yet |
 | `get_weak_concepts` | `limit` | Concepts in read scope with current score ≤ 1, weakest first |
 | `record_assessment` | see below | Stores a study session, marks the unit `studied`, updates the review queue |
 | `get_due_reviews` | `limit` | Due review items with concept, definition, last gap |
@@ -50,7 +50,7 @@ flowchart LR
 ```
 
 - **MCP-3** `record_assessment` MUST reject: a score outside 0–3, a concept that doesn't belong to
-  the unit or an earlier unit in read scope, a `section_ref` outside read scope, a missing `explain` answer, or more than one `apply` answer.
+  the unit or an earlier unit in read scope, a `section_ref` outside read scope, a missing `explain` answer, more than one `apply` answer, an `apply` without a known task shape, or a concept of the unit left unscored (SES-10).
   The error message says what to fix, so Claude can retry.
 - **MCP-4** Each gap MUST cite a `section_ref`. This makes Claude ground every criticism in the book's text rather than its own memory of DDIA.
 - **MCP-5** Writes are idempotent per call. Claude MAY pass a `client_session_id`, and a
@@ -60,5 +60,5 @@ flowchart LR
 
 - **MCP-6** `ddia-study` (optional arg `unit_id`) expands to the study-session instructions in [04](04-study-session.md).
 - **MCP-7** `ddia-review` (optional arg `limit`, default 5) expands to the review instructions in [05](05-review-queue.md).
-- **MCP-8** Prompt texts live in `prompts/*.md` in the repo and are embedded at build time. They are
+- **MCP-8** Prompt texts live in `internal/mcpserver/prompts/*.md` and are embedded at build time. They are
   part of the spec: changing one is a spec change.

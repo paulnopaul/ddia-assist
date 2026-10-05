@@ -25,9 +25,13 @@ import (
 var templateFS embed.FS
 
 var funcs = template.FuncMap{
-	"pages":  func(words int) int { return int(math.Round(float64(words) / 400)) },
-	"indent": func(level int) int { return level * 16 },
-	"round":  func(f float64) int { return int(math.Round(f)) },
+	"pages":       func(words int) int { return int(math.Round(float64(words) / 400)) },
+	"indent":      func(level int) int { return level * 16 },
+	"round":       func(f float64) int { return int(math.Round(f)) },
+	"scoreValues": func() []int { return []int{0, 1, 2, 3} },
+	"scoreLabel": func(v int) string {
+		return [...]string{"missing", "shaky", "solid", "could teach it"}[max(0, min(v, 3))]
+	},
 	"statusLabel": func(s string) string {
 		switch s {
 		case store.StatusNotStarted:
