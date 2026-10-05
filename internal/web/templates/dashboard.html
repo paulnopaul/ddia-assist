@@ -1,1 +1,27 @@
-{{define "content"}}<h1>Dashboard</h1>{{end}}
+{{define "content"}}
+{{with .Data}}
+<h1>{{.Book.Title}}</h1>
+<div class="stats">
+  <div class="stat"><b>{{.Read}}/{{.Total}}</b>units read</div>
+  <div class="stat"><b>{{.Studied}}/{{.Total}}</b>units studied</div>
+  <div class="stat"><b>{{.Due}}</b>reviews due</div>
+</div>
+<h2>Next</h2>
+<ul>
+  {{with .NextStudy}}<li>Study <a href="/units/{{.ID}}">{{.Title}}</a>: run <b>/ddia-study</b> in Claude Desktop.</li>{{end}}
+  {{if .Due}}<li>{{.Due}} concept reviews are due: run <b>/ddia-review</b> in Claude Desktop.</li>{{end}}
+  {{with .NextRead}}<li>Read <a href="/units/{{.ID}}">{{.Title}}</a> (chapter {{.Chapter}}, ≈ {{pages .Words}} pages), then mark it read.</li>{{end}}
+</ul>
+<h2>Weakest concepts</h2>
+{{with .Weak}}
+<table><tr><th>Concept</th><th>Unit</th><th>Score</th></tr>
+{{range .}}<tr><td>{{.Name}}</td><td><a href="/units/{{.UnitID}}">{{.UnitTitle}}</a></td><td>{{with .Score}}<span class="score-{{.}}">{{.}} · {{scoreLabel .}}</span>{{end}}</td></tr>{{end}}
+</table>
+{{else}}<p class="muted">Nothing scored at 0 or 1. Nice.</p>{{end}}
+<h2>Progress by chapter</h2>
+<table><tr><th>Chapter</th><th>Read</th><th>Studied</th><th></th></tr>
+{{range .Chapters}}<tr><td>{{.Chapter}}</td><td>{{.Read}}/{{.Units}}</td><td>{{.Studied}}/{{.Units}}</td>
+<td style="width:40%"><div style="background:var(--line);height:8px;border-radius:4px"><div style="background:var(--ok);height:8px;border-radius:4px;width:{{percent .Studied .Units}}%"></div></div></td></tr>{{end}}
+</table>
+{{end}}
+{{end}}

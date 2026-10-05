@@ -29,6 +29,12 @@ var funcs = template.FuncMap{
 	"indent":      func(level int) int { return level * 16 },
 	"round":       func(f float64) int { return int(math.Round(f)) },
 	"scoreValues": func() []int { return []int{0, 1, 2, 3} },
+	"percent": func(a, b int) int {
+		if b == 0 {
+			return 0
+		}
+		return a * 100 / b
+	},
 	"scoreLabel": func(v int) string {
 		return [...]string{"missing", "shaky", "solid", "could teach it"}[max(0, min(v, 3))]
 	},

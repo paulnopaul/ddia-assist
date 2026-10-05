@@ -1,1 +1,15 @@
-{{define "content"}}<h1>Concepts</h1><p class="muted">Concepts appear after your first study session in Claude.</p>{{end}}
+{{define "content"}}
+<h1>Concepts</h1>
+{{with .Data.Concepts}}
+<p class="muted">Concepts from the units you've read, weakest first.</p>
+<table>
+  <tr><th>Concept</th><th>Unit</th><th>Score</th><th>Review</th></tr>
+  {{range .}}<tr>
+    <td><b>{{.Name}}</b><br><span class="muted">{{.Definition}}</span></td>
+    <td><a href="/units/{{.UnitID}}">{{.UnitTitle}}</a><br><span class="muted">{{.SectionRef}}</span></td>
+    <td>{{with .Score}}<span class="score-{{.}}">{{.}} · {{scoreLabel .}}</span>{{else}}<span class="muted">–</span>{{end}}</td>
+    <td>{{with .Review}}{{if .Mastered}}<span class="score-3">mastered</span>{{else}}due {{.DueAt}}<br><span class="muted">every {{.Interval}} d, streak {{.Streak}}</span>{{end}}{{else}}<span class="muted">not queued</span>{{end}}</td>
+  </tr>{{end}}
+</table>
+{{else}}<p class="muted">Concepts appear after your first study session in Claude.</p>{{end}}
+{{end}}
