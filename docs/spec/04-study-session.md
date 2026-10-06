@@ -30,9 +30,6 @@ sequenceDiagram
 
 - **SES-1 Explain.** Claude asks for an explanation of the whole unit in your own words, from
   memory, without looking at the book. Claude MUST NOT show the unit text or a summary first.
-  The ask MUST say how much is expected: roughly one paragraph per main idea, about 150–300
-  words in total, covering what each idea is for and the trade-off behind it rather than
-  definitions. More is never penalised; the size is a guide, not a limit.
 - **SES-2 Probe.** 3–5 questions aimed at what the explanation missed, got wrong or left vague.
   They focus on *why* and on trade-offs ("what breaks if…", "why not just…"), not on definitions.
   One question at a time, each with short feedback.
@@ -72,15 +69,6 @@ Tasks are short, scoped and aimed at one specific piece of reasoning.
 | 3 | Could teach it: explains why it exists, the trade-offs and the edge cases |
 
 - **SES-10** Every concept in the unit gets a score in each study session.
-- **SES-13 Scoring rules.** The score is about the mechanism, not completeness:
-  - An answer that names the right mechanism and applies it correctly is at least 2, even if it
-    misses a secondary failure mode or an edge case. Those misses cost the 3, never the 2.
-  - 1 is for knowing the term or sensing the problem without being able to say how it works.
-  - 0 is for wrong, "I don't know", or not mentioned anywhere in the session.
-  - A concept's score is the best evidence from the whole session (explanation, probes, task),
-    not an average. Probe and task scores use the same scale and the same rules.
-  - Concepts are mechanisms, trade-offs and named techniques. Roles, history and products named
-    only as examples are not concepts and MUST NOT be scored.
 - **SES-11** You can override any score in the web UI. The override wins (DAT-2).
 - **SES-12** The unit becomes `studied` after `record_assessment`, whatever the scores are.
   Progress never blocks; weak concepts go to the review queue instead ([05](05-review-queue.md)).
