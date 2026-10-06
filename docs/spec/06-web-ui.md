@@ -26,3 +26,6 @@ flowchart LR
 - **UI-5 Concepts page.** All concepts in read scope with current score, review due date and streak. Sortable, with the weakest first by default.
 - **UI-6 Dashboard.** Units read and studied per chapter, the number of due reviews, and the five weakest concepts.
 - **UI-7** The UI MUST NOT render section Markdown. You read in your own reader.
+- **UI-8 Unit numbers.** The reading plan, unit page and dashboard show each unit's number (`#12`). The unit
+  page says how to study it: pick `ddia-study` in Claude Desktop and enter that number, or leave it empty for
+  the next read unit (MCP-6).

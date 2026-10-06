@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -52,18 +53,63 @@ func (s *server) addStudy(srv *mcp.Server) {
 	srv.AddPrompt(&mcp.Prompt{
 		Name:        "ddia-study",
 		Title:       "Study a unit",
-		Description: "Explain, probe, apply and verdict for the next read unit (or the one you name).",
-		Arguments:   []*mcp.PromptArgument{{Name: "unit_id", Description: "Unit to study; defaults to the next read, unstudied unit."}},
+		Description: "Explain, probe, apply and verdict for the next read unit, or the one you name.",
+		Arguments: []*mcp.PromptArgument{{Name: "unit", Description: "Optional. The unit's number from the web UI (#12) or a few words of its title. " +
+			"Leave empty to study the next read, unstudied unit."}},
 	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		unit := "the `next_to_study` unit from `get_status`"
-		if id := strings.TrimSpace(req.Params.Arguments["unit_id"]); id != "" {
-			unit = "unit " + id
+		arg := req.Params.Arguments["unit"]
+		if arg == "" {
+			arg = req.Params.Arguments["unit_id"] // older clients (MCP-6)
+		}
+		unit, err := s.resolveUnit(ctx, arg)
+		if err != nil {
+			return nil, err
 		}
 		return &mcp.GetPromptResult{
 			Description: "DDIA study session",
 			Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: strings.ReplaceAll(promptText("ddia-study"), "{{UNIT}}", unit)}}},
 		}, nil
 	})
+}
+
+// resolveUnit turns the ddia-study argument into the prompt's unit line (MCP-6). It accepts
+// a unit number, optionally prefixed with '#', or words from a unit title.
+func (s *server) resolveUnit(ctx context.Context, arg string) (string, error) {
+	arg = strings.TrimSpace(arg)
+	if arg == "" {
+		return "the `next_to_study` unit from `get_status`", nil
+	}
+	units, err := s.st.Units(ctx)
+	if err != nil {
+		return "", err
+	}
+	describe := func(u store.Unit) string { return fmt.Sprintf("unit %d (%q, chapter %d)", u.ID, u.Title, u.Chapter) }
+	if id, err := strconv.ParseInt(strings.TrimPrefix(arg, "#"), 10, 64); err == nil {
+		for _, u := range units {
+			if u.ID == id {
+				return describe(u), nil
+			}
+		}
+		return "", fmt.Errorf("there is no unit #%d; unit numbers are shown on the reading plan at /plan", id)
+	}
+	var matches []store.Unit
+	for _, u := range units {
+		if strings.Contains(strings.ToLower(u.Title), strings.ToLower(arg)) {
+			matches = append(matches, u)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no unit title contains %q; use a unit number from the reading plan at /plan, or leave the argument empty", arg)
+	case 1:
+		return describe(matches[0]), nil
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "the one I mean by %q. Several units match, so ask me which one before anything else:", arg)
+	for _, u := range matches {
+		b.WriteString("\n   - " + describe(u))
+	}
+	return b.String(), nil
 }
 
 func toolErr(err error) error {

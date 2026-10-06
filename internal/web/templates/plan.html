@@ -7,7 +7,7 @@
   <tr><th style="width:40%">Unit</th><th>Size</th><th>Status</th><th>Score</th><th>Actions</th></tr>
   {{range .Units}}
   <tr>
-    <td><a href="/units/{{.ID}}">{{.Title}}</a><br><span class="muted" style="font-size:12px">{{len .Sections}} sections, {{(index .Sections 0).ID}}…</span></td>
+    <td><span class="muted">#{{.ID}}</span> <a href="/units/{{.ID}}">{{.Title}}</a><br><span class="muted" style="font-size:12px">{{len .Sections}} sections, {{(index .Sections 0).ID}}…</span></td>
     <td>{{.Words}} words<br><span class="muted">≈ {{pages .Words}} pages</span></td>
     <td><span class="pill s-{{.Status}}">{{statusLabel .Status}}</span></td>
     <td>{{with index $.Data.Scores .ID}}<span class="score-{{round .}}">{{printf "%.1f" .}}</span>{{else}}<span class="muted">–</span>{{end}}</td>

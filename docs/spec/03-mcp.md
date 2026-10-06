@@ -58,7 +58,11 @@ flowchart LR
 
 ## Prompts
 
-- **MCP-6** `ddia-study` (optional arg `unit_id`) expands to the study-session instructions in [04](04-study-session.md).
+- **MCP-6** `ddia-study` (optional arg `unit`) expands to the study-session instructions in [04](04-study-session.md).
+  `unit` MAY be the unit's number as the web UI shows it (`12` or `#12`) or a few words of its title, matched
+  case-insensitively. Empty means the next read, unstudied unit. If several titles match, the prompt names them
+  and tells Claude to ask which one first. An unknown number or title is an error that says where to find unit
+  numbers. The older arg name `unit_id` is still accepted.
 - **MCP-7** `ddia-review` (optional arg `limit`, default 5) expands to the review instructions in [05](05-review-queue.md).
 - **MCP-8** Prompt texts live in `internal/mcpserver/prompts/*.md` and are embedded at build time. They are
   part of the spec: changing one is a spec change.
