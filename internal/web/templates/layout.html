@@ -1,0 +1,38 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · ddia-assist</title>
+<style>
+  :root { --fg:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea; --bg:#fff; --accent:#0a66c2; --ok:#1a7f37; --warn:#b35900; --bad:#c62828; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#f2f2f7; --muted:#a1a1a6; --line:#38383a; --bg:#1c1c1e; --accent:#64a8ff; --ok:#4ac26b; --warn:#f0a050; --bad:#ff6b6b; } }
+  body { font: 15px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); max-width: 960px; margin: 0 auto; padding: 16px; }
+  nav { display: flex; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 16px; }
+  nav a { color: var(--fg); text-decoration: none; font-weight: 600; }
+  a { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .muted { color: var(--muted); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; border: 1px solid var(--line); }
+  .s-read { color: var(--accent); } .s-studied { color: var(--ok); } .s-reading { color: var(--warn); }
+  .score-0 { color: var(--bad); } .score-1 { color: var(--warn); } .score-2 { color: var(--fg); } .score-3 { color: var(--ok); }
+  form.inline { display: inline; }
+  button, select, input[type=text], input[type=number] { font: inherit; padding: 2px 8px; }
+  .flash { padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 16px; }
+  .error { border-color: var(--bad); }
+  pre.answer { white-space: pre-wrap; background: transparent; border-left: 3px solid var(--line); padding-left: 10px; margin: 4px 0; font: inherit; }
+  h2 { margin-top: 28px; }
+  .stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  .stat b { display: block; font-size: 24px; }
+</style>
+</head>
+<body>
+<nav><a href="/">Dashboard</a><a href="/plan">Reading plan</a><a href="/concepts">Concepts</a><a href="/import">Import</a></nav>
+{{with .Flash}}<div class="flash">{{.}}</div>{{end}}
+{{with .Error}}<div class="flash error">{{.}}</div>{{end}}
+{{template "content" .}}
+<p class="muted" style="margin-top:40px;font-size:12px">ddia-assist {{.Version}}</p>
+</body>
+</html>{{end}}

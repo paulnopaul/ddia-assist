@@ -1,0 +1,27 @@
+{{define "content"}}
+<h1>Import</h1>
+{{with .Data.Book}}
+<p>Imported: <b>{{.Title}}</b> <span class="muted">({{.ImportedAt}})</span></p>
+<form method="post" action="/book/delete" onsubmit="return confirm('Delete the book and all progress, sessions and scores?')">
+  <button>Delete book and all progress</button>
+</form>
+{{else}}
+<p>Upload your EPUB. It stays on this machine: the text is only ever sent to your own Claude conversations.</p>
+<form method="post" action="/import" enctype="multipart/form-data">
+  <input type="file" name="epub" accept=".epub,application/epub+zip" required>
+  <button>Import</button>
+</form>
+{{end}}
+{{with .Data.Result}}
+<h2>Import summary</h2>
+<table>
+  <tr><th>Title</th><td>{{.Title}}</td></tr>
+  <tr><th>Chapters</th><td>{{.Chapters}}</td></tr>
+  <tr><th>Sections</th><td>{{.Sections}}</td></tr>
+  <tr><th>Figures</th><td>{{.Figures}}</td></tr>
+  <tr><th>Words</th><td>{{.Words}} (≈ {{pages .Words}} pages)</td></tr>
+  <tr><th>Proposed units</th><td>{{.Units}}</td></tr>
+</table>
+<p><a href="/plan">Review the reading plan →</a></p>
+{{end}}
+{{end}}

@@ -1,0 +1,33 @@
+{{define "content"}}
+{{with .Data.Unit}}
+<p class="muted"><a href="/plan">← Reading plan</a> · Chapter {{.Chapter}}</p>
+<h1>{{.Title}}</h1>
+<p><span class="pill s-{{.Status}}">{{statusLabel .Status}}</span> · {{.Words}} words (≈ {{pages .Words}} pages){{with .ReadAt}} · read {{.}}{{end}}</p>
+{{$id := .ID}}{{$cur := .Status}}
+{{range $st := settableStatuses}}{{if ne $st $cur}}
+<form class="inline" method="post" action="/units/{{$id}}/status"{{if and (eq $st "not_started") (ne $cur "reading")}} onsubmit="return confirm('Mark this unit unread? Claude won\'t be able to see it until you mark it read again. Recorded sessions are kept.')"{{end}}><input type="hidden" name="status" value="{{$st}}"><button>{{statusAction $st}}</button></form>
+{{end}}{{end}}
+{{if eq .Status "read"}}
+<div class="flash" style="margin-top:12px">Read. Open Claude Desktop and run <b>/ddia-study</b> to study this unit.</div>
+{{end}}
+
+<h2>Sections</h2>
+<table>
+  <tr><th>ID</th><th>Heading</th><th>Words</th><th></th></tr>
+  {{$u := .}}
+  {{range $i, $s := .Sections}}
+  <tr>
+    <td class="muted">{{$s.ID}}</td>
+    <td style="padding-left:{{indent $s.Level}}px">{{$s.Heading}}</td>
+    <td>{{$s.Words}}</td>
+    <td>{{if $i}}<form class="inline" method="post" action="/units/{{$u.ID}}/split"><input type="hidden" name="section" value="{{$s.ID}}"><button title="Start a new unit here">Split here</button></form>{{end}}</td>
+  </tr>
+  {{end}}
+</table>
+
+<h2>Rename</h2>
+<form method="post" action="/units/{{.ID}}/rename"><input type="text" name="title" value="{{.Title}}" size="60"> <button>Save</button></form>
+{{end}}
+{{template "sessions" .}}
+{{end}}
+{{define "sessions"}}{{end}}
