@@ -13,7 +13,7 @@ flowchart LR
 ```
 
 - **MCP-1** Every tool that returns book text, concepts or search results MUST filter to
-  the read scope (DAT-5). This is what keeps tasks limited to what's been read: it's
+  the read scope (DAT-5). A chapter's reference block is in scope once any unit of that chapter is. This is what keeps tasks limited to what's been read: it's
   enforced in the server, not left to the prompt.
 - **MCP-2** There are no exceptions, including for the unit about to be studied. If it isn't marked
   read yet, `get_unit` returns an error and Claude asks you to confirm you've read it. Only then does it call `mark_read`.
