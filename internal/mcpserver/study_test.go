@@ -145,7 +145,8 @@ func TestPrompt_MCP6_DDIAStudy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"next_to_study", "## 1. Explain", "record_assessment", "predict_outcome"} {
+	// SES-1 (expected size of the explanation) and SES-13 (scoring rules) are part of the prompt text.
+	for _, want := range []string{"next_to_study", "## 1. Explain", "150–300 words", "Scoring rules", "3 is earned", "record_assessment", "predict_outcome"} {
 		if !strings.Contains(txt, want) {
 			t.Errorf("prompt missing %q", want)
 		}
