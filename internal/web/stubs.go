@@ -2,13 +2,7 @@ package web
 
 import "net/http"
 
-// Hooks filled in by later milestones (study sessions, scores, review queue).
-
-func (s *server) routesM3(mux *http.ServeMux) {}
-
-func (s *server) unitScores(r *http.Request) (map[int64]float64, error) { return nil, nil }
-
-func (s *server) unitExtras(r *http.Request, unitID int64, data map[string]any) error { return nil }
+// The dashboard and concepts pages arrive with the review queue (M4).
 
 func (s *server) dashboard(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/plan", http.StatusSeeOther)

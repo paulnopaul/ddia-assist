@@ -4,7 +4,7 @@
 <h1>{{.Title}}</h1>
 <p><span class="pill s-{{.Status}}">{{statusLabel .Status}}</span> · {{.Words}} words (≈ {{pages .Words}} pages){{with .ReadAt}} · read {{.}}{{end}}</p>
 {{$id := .ID}}{{$cur := .Status}}
-{{range $st := settableStatuses}}{{if ne $st $cur}}
+{{range $st := settableStatuses}}{{if and (ne $st $cur) (not (and (eq $cur "studied") (eq $st "read")))}}
 <form class="inline" method="post" action="/units/{{$id}}/status"{{if and (eq $st "not_started") (ne $cur "reading")}} onsubmit="return confirm('Mark this unit unread? Claude won\'t be able to see it until you mark it read again. Recorded sessions are kept.')"{{end}}><input type="hidden" name="status" value="{{$st}}"><button>{{statusAction $st}}</button></form>
 {{end}}{{end}}
 {{if eq .Status "read"}}
@@ -30,4 +30,41 @@
 {{end}}
 {{template "sessions" .}}
 {{end}}
-{{define "sessions"}}{{end}}
+{{define "sessions"}}
+{{with .Data.Concepts}}
+<h2>Concepts</h2>
+<table>
+  <tr><th>Concept</th><th>Section</th><th>Current score</th></tr>
+  {{range .}}<tr><td><b>{{.Name}}</b><br><span class="muted">{{.Definition}}</span></td><td class="muted">{{.SectionRef}}</td>
+  <td>{{with .Score}}<span class="score-{{.}}">{{.}} · {{scoreLabel .}}</span>{{else}}<span class="muted">–</span>{{end}}</td></tr>{{end}}
+</table>
+{{end}}
+{{range .Data.Sessions}}
+<h2>Session {{.ID}} <span class="muted" style="font-size:14px;font-weight:normal">{{.FinishedAt}}</span></h2>
+{{range .Answers}}
+<p><span class="pill">{{.Step}}{{with .TaskShape}} · {{.}}{{end}}</span>{{with .Score}} <span class="score-{{.}}">{{.}}/3</span>{{end}}<br><b>{{.Prompt}}</b></p>
+<pre class="answer">{{.Response}}</pre>
+{{with .Feedback}}<p class="muted">{{.}}</p>{{end}}
+{{end}}
+{{with .Scores}}
+<h3>Scores</h3>
+<table>
+  <tr><th>Concept</th><th>Claude's score</th><th>Your override</th><th>Note</th></tr>
+  {{range .}}<tr>
+    <td>{{.ConceptName}}</td>
+    <td><span class="score-{{.Score}}">{{.Score}}</span></td>
+    <td><form class="inline" method="post" action="/scores/{{.ID}}/override">
+      <select name="score" onchange="this.form.submit()">
+        {{$eff := .Effective}}{{range $v := scoreValues}}<option value="{{$v}}"{{if eq $v $eff}} selected{{end}}>{{$v}} · {{scoreLabel $v}}</option>{{end}}
+      </select>{{if .Override}} <span class="muted">overridden</span>{{end}}
+      <noscript><button>Set</button></noscript></form></td>
+    <td class="muted">{{.Note}}</td>
+  </tr>{{end}}
+</table>
+{{end}}
+{{with .Gaps}}
+<h3>Gaps</h3>
+<ul>{{range .}}<li>{{with .ConceptName}}<b>{{.}}</b>: {{end}}{{.Description}} <span class="muted">→ reread {{.SectionRef}}</span></li>{{end}}</ul>
+{{end}}
+{{end}}
+{{end}}

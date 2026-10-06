@@ -30,6 +30,10 @@ var funcs = template.FuncMap{
 	"indent":           func(level int) int { return level * 16 },
 	"round":            func(f float64) int { return int(math.Round(f)) },
 	"settableStatuses": func() []string { return settable },
+	"scoreValues":      func() []int { return []int{0, 1, 2, 3} },
+	"scoreLabel": func(v int) string {
+		return [...]string{"missing", "shaky", "solid", "could teach it"}[max(0, min(v, 3))]
+	},
 	"statusAction": func(s string) string {
 		switch s {
 		case store.StatusNotStarted:

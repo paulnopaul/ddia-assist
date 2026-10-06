@@ -106,6 +106,56 @@ func TestUnitPage_UI7_NoBookText(t *testing.T) {
 
 func itoa(i int64) string { return strconv.FormatInt(i, 10) }
 
+func TestUnitPage_UI4_SessionsAndOverride_SES11(t *testing.T) {
+	h, st := newServer(t)
+	upload(t, h, testbook.HTMLBook())
+	ctx := context.Background()
+	u := mustUnits(t, st)[0]
+	st.SetStatus(ctx, u.ID, store.StatusRead)
+	cs, err := st.SaveConcepts(ctx, u.ID, []store.ConceptIn{
+		{Name: "Log", Definition: "d", SectionRef: "ch01.s01"},
+		{Name: "Compaction", Definition: "d", SectionRef: "ch01.s01.s01"},
+		{Name: "Framing", Definition: "d", SectionRef: "ch01"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var scores []store.ScoreIn
+	for _, c := range cs {
+		scores = append(scores, store.ScoreIn{ConceptID: c.ID, Score: 1})
+	}
+	if _, _, err := st.RecordAssessment(ctx, store.Assessment{UnitID: u.ID,
+		Answers:       []store.AnswerIn{{Step: "explain", Prompt: "Explain", Response: "my <b>answer</b>"}},
+		ConceptScores: scores,
+		Gaps:          []store.GapIn{{Description: "missed it", SectionRef: "ch01.s01"}}}); err != nil {
+		t.Fatal(err)
+	}
+	body := do(t, h, httptest.NewRequest(http.MethodGet, "/units/"+itoa(u.ID), nil)).Body.String()
+	for _, want := range []string{"Session 1", "my &lt;b&gt;answer&lt;/b&gt;", "reread ch01.s01", "Compaction"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("unit page missing %q", want)
+		}
+	}
+	sessions, _ := st.Sessions(ctx, u.ID)
+	rec := post(t, h, "/scores/"+itoa(sessions[0].Scores[0].ID)+"/override", url.Values{"score": {"3"}})
+	if strings.Contains(rec.Header().Get("Location"), "error") {
+		t.Fatalf("override: %s", rec.Header().Get("Location"))
+	}
+	after, _ := st.Concepts(ctx, u.ID)
+	if *after[0].Score != 3 {
+		t.Fatalf("DAT-2: current score = %d, want override 3", *after[0].Score)
+	}
+}
+
+func mustUnits(t *testing.T, st *store.Store) []store.Unit {
+	t.Helper()
+	us, err := st.Units(context.Background())
+	if err != nil || len(us) == 0 {
+		t.Fatalf("units: %v", err)
+	}
+	return us
+}
+
 func TestMarkUnread_UI3(t *testing.T) {
 	h, st := newServer(t)
 	upload(t, h, testbook.HTMLBook())
