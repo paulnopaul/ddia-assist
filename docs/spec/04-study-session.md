@@ -73,8 +73,12 @@ Tasks are short, scoped and aimed at one specific piece of reasoning.
 
 - **SES-10** Every concept in the unit gets a score in each study session.
 - **SES-13 Scoring rules.** The score is about the mechanism, not completeness:
-  - An answer that names the right mechanism and applies it correctly is at least 2, even if it
-    misses a secondary failure mode or an edge case. Those misses cost the 3, never the 2.
+  - An answer that names the right mechanism and applies it correctly to the scenario is 2. A
+    miss only stays secondary when the question did not ask about it; missing the failure mode
+    the question is directly about is 1, whatever terms the answer uses.
+  - 3 is earned, not defaulted to: the trade-offs and edge cases must be stated unprompted and
+    correctly, including ones the question did not ask about. One missed or wrong edge case
+    means no 3.
   - 1 is for knowing the term or sensing the problem without being able to say how it works.
   - 0 is for wrong, "I don't know", or not mentioned anywhere in the session.
   - A concept's score is the best evidence from the whole session (explanation, probes, task),

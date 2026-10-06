@@ -38,7 +38,8 @@ Give a short wrap-up: what's solid, what's shaky, and each gap with the section 
 - 3 could teach it: why it exists, the trade-offs, the edge cases
 
 Scoring rules, for concepts, probes and the task alike:
-- Score the mechanism, not completeness. If I name the right mechanism and apply it correctly, that's at least 2, even if I miss a secondary failure mode or an edge case; those misses cost the 3, never the 2.
+- Score the mechanism, not completeness. If I name the right mechanism and apply it correctly to the scenario, that's 2. A miss is only secondary when your question didn't ask about it; if I miss the failure mode the question is directly about, that's 1, whatever terms I use.
+- 3 is earned, not the default: I must state the trade-offs and edge cases unprompted and correctly, including ones you didn't ask about. One missed or wrong edge case means no 3.
 - 1 means I know the term or sense the problem but can't say how it works. 0 means wrong, "I don't know", or never mentioned in the whole session.
 - A concept's score is the best evidence from the whole session (explanation, probes, task), not an average.
 
