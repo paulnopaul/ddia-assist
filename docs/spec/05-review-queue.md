@@ -13,7 +13,8 @@ stateDiagram-v2
     Mastered --> Scheduled: later study session scores it ≤ 1
 ```
 
-- **REV-1** A concept enters the queue when it scores 0–2 in a study session. Concepts scoring 3 don't enter it.
+- **REV-1** A concept enters (or re-enters) the queue when it scores 0–2 in a study session, with its interval reset per REV-2.
+  A study score of 3 leaves the concept's queue state as it is.
 - **REV-2** The first interval depends on the score: 0 → 1 day, 1 → 2 days, 2 → 7 days.
 - **REV-3** In a review, a score of 3 doubles the interval (capped at 60 days) and adds one to the
   streak. A score of 0–2 resets the interval per REV-2 and sets the streak to 0.
@@ -22,4 +23,5 @@ stateDiagram-v2
   question per concept. The question MUST differ from the last one recorded for that concept,
   and SHOULD use one of the SES-8 task shapes. Each answer is recorded with `record_review`.
 - **REV-6** Review questions follow the read-scope rule (MCP-1) like everything else.
-- **REV-7** Score overrides in the UI (SES-11) also reschedule the item.
+- **REV-7** Overriding a concept's current score in the UI (SES-11) also reschedules it: 0–2 resets per REV-2,
+  and 3 marks it mastered.

@@ -156,6 +156,40 @@ func mustUnits(t *testing.T, st *store.Store) []store.Unit {
 	return us
 }
 
+func TestDashboardAndConcepts_UI5_UI6(t *testing.T) {
+	h, st := newServer(t)
+	if rec := do(t, h, httptest.NewRequest(http.MethodGet, "/", nil)); rec.Header().Get("Location") != "/import" {
+		t.Fatalf("dashboard without a book should send you to import, got %d %s", rec.Code, rec.Header().Get("Location"))
+	}
+	upload(t, h, testbook.HTMLBook())
+	ctx := context.Background()
+	u := mustUnits(t, st)[0]
+	st.SetStatus(ctx, u.ID, store.StatusRead)
+	cs, _ := st.SaveConcepts(ctx, u.ID, []store.ConceptIn{
+		{Name: "Log", Definition: "d", SectionRef: "ch01.s01"},
+		{Name: "Compaction", Definition: "d", SectionRef: "ch01.s01.s01"},
+		{Name: "Framing", Definition: "d", SectionRef: "ch01"},
+	})
+	scores := []store.ScoreIn{{ConceptID: cs[0].ID, Score: 0}, {ConceptID: cs[1].ID, Score: 3}, {ConceptID: cs[2].ID, Score: 2}}
+	if _, _, err := st.RecordAssessment(ctx, store.Assessment{UnitID: u.ID,
+		Answers: []store.AnswerIn{{Step: "explain", Prompt: "p", Response: "r"}}, ConceptScores: scores}); err != nil {
+		t.Fatal(err)
+	}
+	body := do(t, h, httptest.NewRequest(http.MethodGet, "/", nil)).Body.String()
+	for _, want := range []string{"Test Book", "1/", "units studied", "Weakest concepts", "Log"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("dashboard missing %q", want)
+		}
+	}
+	body = do(t, h, httptest.NewRequest(http.MethodGet, "/concepts", nil)).Body.String()
+	if !strings.Contains(body, "not queued") || !strings.Contains(body, "every 1 d") {
+		t.Errorf("concepts page missing review state:\n%s", body)
+	}
+	if strings.Index(body, "Log") > strings.Index(body, "Compaction") {
+		t.Error("UI-5: weakest concept should come first")
+	}
+}
+
 func TestMarkUnread_UI3(t *testing.T) {
 	h, st := newServer(t)
 	upload(t, h, testbook.HTMLBook())

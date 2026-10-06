@@ -6,8 +6,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// addLater registers the study (M3) and review (M4) tools.
 func (s *server) addLater(srv *mcp.Server) {
 	s.addStudy(srv)
+	s.addReview(srv)
 }
 
 func (s *server) statusExtras(ctx context.Context, out *statusOut) error {
@@ -26,6 +28,3 @@ func (s *server) statusExtras(ctx context.Context, out *statusOut) error {
 func (s *server) unitExtras(ctx context.Context, unitID int64) (string, error) {
 	return s.conceptsSection(ctx, unitID)
 }
-
-// dueCount is the number of due reviews; the review queue arrives in M4.
-func (s *server) dueCount(ctx context.Context) (int, error) { return 0, nil }
