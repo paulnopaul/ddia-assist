@@ -35,8 +35,9 @@ For local development without Docker: `go run ./cmd/ddia serve -data ./data`.
 1. Open http://localhost:8080/import and upload your EPUB. The reading plan proposes units of about 10–20 pages;
    merge, split or rename them at http://localhost:8080/plan.
 2. Read the next unit in your own e-reader, then click **Mark read**.
-3. In Claude Desktop, pick the **ddia-study** prompt from the ddia server (the "+" menu). Claude asks you to explain
-   the unit from memory, probes the gaps, gives one short task, scores each concept and saves the result.
+3. In Claude Desktop, pick the **ddia-study** prompt from the ddia server (the "+" menu). Leave **unit** empty to
+   study the next read unit, or enter a unit's number (shown as `#12` on the plan) or a few words of its title.
+   Claude asks you to explain the unit from memory, probes the gaps, gives one short task, scores each concept and saves the result.
 4. When reviews are due (the dashboard says so), run the **ddia-review** prompt.
 
 Claude can only see units you've marked read, so tasks never reach ahead of where you are.

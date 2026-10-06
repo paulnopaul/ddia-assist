@@ -217,3 +217,16 @@ func mustUnitsM1(t *testing.T, st *store.Store) []store.Unit {
 	}
 	return us
 }
+
+func TestUnitNumbers_UI8(t *testing.T) {
+	h, st := newServer(t)
+	upload(t, h, testbook.HTMLBook())
+	u := mustUnits(t, st)[0]
+	if body := do(t, h, httptest.NewRequest(http.MethodGet, "/plan", nil)).Body.String(); !strings.Contains(body, "#"+itoa(u.ID)+"</span>") {
+		t.Error("plan page should show each unit's number")
+	}
+	body := do(t, h, httptest.NewRequest(http.MethodGet, "/units/"+itoa(u.ID), nil)).Body.String()
+	if !strings.Contains(body, "#"+itoa(u.ID)+"</span>") || !strings.Contains(body, "<code>"+itoa(u.ID)+"</code> as the unit") {
+		t.Error("unit page should show the unit number and how to pass it to ddia-study")
+	}
+}

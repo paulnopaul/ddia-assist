@@ -8,7 +8,7 @@
 </div>
 <h2>Next</h2>
 <ul>
-  {{with .NextStudy}}<li>Study <a href="/units/{{.ID}}">{{.Title}}</a>: run <b>/ddia-study</b> in Claude Desktop.</li>{{end}}
+  {{with .NextStudy}}<li>Study <a href="/units/{{.ID}}">#{{.ID}} {{.Title}}</a>: run <b>/ddia-study</b> in Claude Desktop, with the unit left empty.</li>{{end}}
   {{if .Due}}<li>{{.Due}} concept reviews are due: run <b>/ddia-review</b> in Claude Desktop.</li>{{end}}
   {{with .NextRead}}<li>Read <a href="/units/{{.ID}}">{{.Title}}</a> (chapter {{.Chapter}}, ≈ {{pages .Words}} pages), then mark it read.</li>{{end}}
 </ul>

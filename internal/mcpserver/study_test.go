@@ -3,6 +3,8 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -111,15 +113,66 @@ func TestRecordAssessment_SES12_MarksStudied_MCP5_Idempotent(t *testing.T) {
 }
 
 func TestPrompt_MCP6_DDIAStudy(t *testing.T) {
-	e := setup(t, false)
-	res, err := e.cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "ddia-study", Arguments: map[string]string{"unit_id": "7"}})
+	e := setup(t, true)
+	units, err := e.st.Units(context.Background())
+	if err != nil || len(units) < 2 {
+		t.Fatalf("units: %v %v", units, err)
+	}
+	u := units[len(units)-1]
+	prompt := func(args map[string]string) (string, error) {
+		res, err := e.cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "ddia-study", Arguments: args})
+		if err != nil {
+			return "", err
+		}
+		return res.Messages[0].Content.(*mcp.TextContent).Text, nil
+	}
+	want := fmt.Sprintf("unit %d (%q", u.ID, u.Title)
+	for _, args := range []map[string]string{
+		{"unit": strconv.FormatInt(u.ID, 10)},
+		{"unit": "#" + strconv.FormatInt(u.ID, 10)},
+		{"unit": " " + strings.ToUpper(u.Title) + " "},
+		{"unit_id": strconv.FormatInt(u.ID, 10)}, // older clients
+	} {
+		txt, err := prompt(args)
+		if err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if !strings.Contains(txt, want) {
+			t.Errorf("%v: prompt doesn't name %s", args, want)
+		}
+	}
+	txt, err := prompt(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"next_to_study", "## 1. Explain", "record_assessment", "predict_outcome"} {
+		if !strings.Contains(txt, want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+	if _, err := prompt(map[string]string{"unit": "9999"}); err == nil || !strings.Contains(err.Error(), "/plan") {
+		t.Errorf("unknown number: err = %v", err)
+	}
+	if _, err := prompt(map[string]string{"unit": "no such title"}); err == nil {
+		t.Error("unknown title should fail")
+	}
+}
+
+func TestPrompt_MCP6_AmbiguousTitleAsksWhichUnit(t *testing.T) {
+	e := setup(t, true)
+	units, _ := e.st.Units(context.Background())
+	ctx := context.Background()
+	for _, u := range units[:2] {
+		if err := e.st.Rename(ctx, u.ID, "Shared words "+u.Title); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res, err := e.cs.GetPrompt(ctx, &mcp.GetPromptParams{Name: "ddia-study", Arguments: map[string]string{"unit": "shared words"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	txt := res.Messages[0].Content.(*mcp.TextContent).Text
-	for _, want := range []string{"unit 7", "## 1. Explain", "record_assessment", "predict_outcome"} {
-		if !strings.Contains(txt, want) {
-			t.Errorf("prompt missing %q", want)
-		}
+	if !strings.Contains(txt, "ask me which one") || !strings.Contains(txt, fmt.Sprintf("unit %d", units[0].ID)) || !strings.Contains(txt, fmt.Sprintf("unit %d", units[1].ID)) {
+		t.Fatalf("ambiguous prompt:\n%s", txt[:400])
 	}
 }

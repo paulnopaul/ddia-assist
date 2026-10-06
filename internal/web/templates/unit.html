@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Data.Unit}}
 <p class="muted"><a href="/plan">← Reading plan</a> · Chapter {{.Chapter}}</p>
-<h1>{{.Title}}</h1>
+<h1><span class="muted">#{{.ID}}</span> {{.Title}}</h1>
 <p><span class="pill s-{{.Status}}">{{statusLabel .Status}}</span> · {{.Words}} words (≈ {{pages .Words}} pages){{with .ReadAt}} · read {{.}}{{end}}</p>
 {{$id := .ID}}{{$cur := .Status}}
 {{range $st := settableStatuses}}{{if and (ne $st $cur) (not (and (eq $cur "studied") (eq $st "read")))}}
@@ -10,6 +10,7 @@
 {{if eq .Status "read"}}
 <div class="flash" style="margin-top:12px">Read. Open Claude Desktop and run <b>/ddia-study</b> to study this unit.</div>
 {{end}}
+<p class="muted">To study this unit in Claude Desktop, pick the <b>ddia-study</b> prompt and enter <code>{{.ID}}</code> as the unit, or leave it empty to study the next read unit.</p>
 
 <h2>Sections</h2>
 <table>
