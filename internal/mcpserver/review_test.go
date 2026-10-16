@@ -71,3 +71,17 @@ func TestPrompt_MCP7_DDIAReview(t *testing.T) {
 		t.Fatalf("prompt: %s", txt)
 	}
 }
+
+func TestPrompt_REV8_EnglishCheckStaysInChat(t *testing.T) {
+	e := setup(t, false)
+	res, err := e.cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "ddia-review", Arguments: map[string]string{"limit": "3"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	txt := res.Messages[0].Content.(*mcp.TextContent).Text
+	for _, want := range []string{"**English**", "B2", "C1", "never affects the score", "none of it goes into `record_review`"} {
+		if !strings.Contains(txt, want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+}
