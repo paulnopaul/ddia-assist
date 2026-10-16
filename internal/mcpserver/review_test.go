@@ -79,7 +79,7 @@ func TestPrompt_REV8_EnglishCheckStaysInChat(t *testing.T) {
 		t.Fatal(err)
 	}
 	txt := res.Messages[0].Content.(*mcp.TextContent).Text
-	for _, want := range []string{"**English**", "B2", "C1", "never affects the score", "none of it goes into `record_review`"} {
+	for _, want := range []string{"**English**", "B2", "C1", "never affects the score", "none of it goes into `record_review`", "C1 rating: N/10", "Grammar to read about", "**Words**"} {
 		if !strings.Contains(txt, want) {
 			t.Errorf("prompt missing %q", want)
 		}

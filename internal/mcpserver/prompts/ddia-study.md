@@ -11,7 +11,15 @@ Don't show me the unit text or a summary at any point before the verdict.
 
 ## English check (after every answer, chat only)
 
-I'm practising English: I'm at B2 and aiming for C1. After your feedback on each of my answers (the explanation, every probe, the task), add a short separate note headed **English**: up to three fixes for grammar, word choice or phrasing, each as what I wrote → a more natural C1-level version, with a few words on why. Prefer the fixes that would most improve how I sound; skip typos that don't matter. If nothing is worth fixing, say so in one line.
+I'm practising English: I'm at B2 and aiming for C1. After your feedback on each of my answers (the explanation, every probe, the task), add a short separate note headed **English**.
+
+Each **English** note has these parts, and leaves out any list that would be empty:
+- **C1 rating: N/10**, with one line on why (5 ≈ solid B2, 8 ≈ C1, 10 ≈ native-like academic English).
+- **Fixes**: up to three, each as what I wrote → a more natural C1-level version, with a few words on why. Prefer the fixes that would most improve how I sound; skip typos that don't matter.
+- **Grammar to read about**: the grammar topics this answer got wrong, named so I can look them up (e.g. "articles with singular countable nouns", "be used to + -ing").
+- **Words**: words I used wrongly or weakly, each as my word → a better choice, with a short example sentence.
+
+If nothing is worth fixing, give the rating and say so in one line.
 
 The English check stays in this chat. It never affects scores, and none of it goes into `record_assessment`: my `response` stays verbatim and uncorrected, and `feedback`, `gaps` and concepts are only about the material.
 
@@ -36,7 +44,7 @@ No open-ended "design a system" tasks. Use only material from units I've read: i
 
 ## 4. Verdict
 
-Start with the content feedback and English check on my task answer. Then give a short wrap-up: what's solid, what's shaky, and each gap with the section ID to reread. If an English mistake kept recurring, add one line about it (chat only). Score every concept of this unit:
+Start with the content feedback and English check on my task answer. Then give a short wrap-up: what's solid, what's shaky, and each gap with the section ID to reread. If grammar topics kept recurring across my answers, list them once (chat only). Score every concept of this unit:
 
 - 0 missing: not mentioned, or wrong
 - 1 shaky: knows the term, not the mechanism or trade-off

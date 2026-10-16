@@ -102,3 +102,11 @@ doubles as writing practice.
 - **SES-15 Chat only.** English feedback never affects scores and MUST NOT be stored: not in
   `record_assessment` (`response` stays verbatim, uncorrected; `feedback`, `gaps` and concepts
   stay about the material) and not in `record_review`.
+- **SES-16 Rating and study list.** Each English note also has:
+  - a 0–10 rating of how close the answer is to C1, with one line on why (5 ≈ solid B2,
+    8 ≈ C1, 10 ≈ native-like academic English);
+  - the grammar topics the answer got wrong, named so you can look them up (e.g. "articles
+    with singular countable nouns", "be used to + -ing");
+  - the words used wrongly or weakly, each with a better choice and a short example.
+  An empty list is left out. The verdict MAY list the grammar topics that recurred across the
+  session.

@@ -26,4 +26,4 @@ stateDiagram-v2
 - **REV-7** Overriding a concept's current score in the UI (SES-11) also reschedules it: 0–2 resets per REV-2,
   and 3 marks it mastered.
 - **REV-8** The `ddia-review` prompt gives the same English feedback after each answer as a study
-  session (SES-14), under the same chat-only rule (SES-15).
+  session (SES-14, SES-16), under the same chat-only rule (SES-15).
