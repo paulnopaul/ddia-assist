@@ -88,3 +88,17 @@ Tasks are short, scoped and aimed at one specific piece of reasoning.
 - **SES-11** You can override any score in the web UI. The override wins (DAT-2).
 - **SES-12** The unit becomes `studied` after `record_assessment`, whatever the scores are.
   Progress never blocks; weak concepts go to the review queue instead ([05](05-review-queue.md)).
+
+## English feedback
+
+You answer in English, which isn't your first language (B2 now, aiming for C1). Each answer
+doubles as writing practice.
+
+- **SES-14 English check.** After the content feedback on each of your answers (explanation,
+  every probe, the task), Claude adds a short, separate English note: up to three fixes for
+  grammar, word choice or phrasing, each as what you wrote and a more natural C1-level version,
+  with a few words on why. If nothing is worth fixing, it says so in one line. The verdict MAY
+  add one line on a pattern that kept recurring.
+- **SES-15 Chat only.** English feedback never affects scores and MUST NOT be stored: not in
+  `record_assessment` (`response` stays verbatim, uncorrected; `feedback`, `gaps` and concepts
+  stay about the material) and not in `record_review`.
