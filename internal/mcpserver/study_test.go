@@ -178,14 +178,14 @@ func TestPrompt_MCP6_AmbiguousTitleAsksWhichUnit(t *testing.T) {
 	}
 }
 
-func TestPrompt_SES14_SES15_EnglishCheckStaysInChat(t *testing.T) {
+func TestPrompt_SES14_SES15_SES16_EnglishCheckStaysInChat(t *testing.T) {
 	e := setup(t, true)
 	res, err := e.cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "ddia-study"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	txt := res.Messages[0].Content.(*mcp.TextContent).Text
-	for _, want := range []string{"## English check", "B2", "C1", "then the English check", "never affects scores", "verbatim and uncorrected"} {
+	for _, want := range []string{"## English check", "B2", "C1", "then the English check", "never affects scores", "verbatim and uncorrected", "C1 rating: N/10", "Grammar to read about", "**Words**"} {
 		if !strings.Contains(txt, want) {
 			t.Errorf("prompt missing %q", want)
 		}
