@@ -11,8 +11,8 @@ import (
 )
 
 // TestMigrate_DAT6_KeepsSingleBookData upgrades a database written before
-// multi-book support and checks that its book, progress, concepts, figures
-// and search index survive as the active book 1.
+// multi-book support and checks that its book, progress, concepts, sessions,
+// scores, review queue, figures and search index survive as the active book 1.
 func TestMigrate_DAT6_KeepsSingleBookData(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "ddia.db")
@@ -38,6 +38,11 @@ func TestMigrate_DAT6_KeepsSingleBookData(t *testing.T) {
 		`INSERT INTO unit_section(unit_id, section_id, ord) VALUES (7, 'ch01', 0), (7, 'ch01.s01', 1)`,
 		`INSERT INTO progress(unit_id, status, read_at) VALUES (7, 'read', datetime('now'))`,
 		`INSERT INTO concept(id, unit_id, name, definition, section_ref) VALUES (3, 7, 'Log', 'd', 'ch01.s01')`,
+		`INSERT INTO session(id, kind, unit_id, finished_at) VALUES (5, 'study', 7, datetime('now'))`,
+		`INSERT INTO answer(session_id, ord, step, prompt, response) VALUES (5, 0, 'explain', 'Explain', 'my answer')`,
+		`INSERT INTO concept_score(session_id, concept_id, score, user_override) VALUES (5, 3, 1, 2)`,
+		`INSERT INTO gap(session_id, concept_id, description, section_ref) VALUES (5, 3, 'missed it', 'ch01.s01')`,
+		`INSERT INTO review_item(concept_id, due_at, interval_days, streak, last_score) VALUES (3, datetime('now', '-1 day'), 2, 0, 1)`,
 	} {
 		if _, err := db.ExecContext(ctx, q); err != nil {
 			t.Fatalf("%s: %v", q, err)
@@ -66,7 +71,14 @@ func TestMigrate_DAT6_KeepsSingleBookData(t *testing.T) {
 	if hits, err := s.Search(ctx, 1, "quorumword", 5); err != nil || len(hits) != 1 || hits[0].UnitID != 7 {
 		t.Fatalf("search = %+v, %v", hits, err)
 	}
-	if cs, err := s.Concepts(ctx, 7); err != nil || len(cs) != 1 {
-		t.Fatalf("concepts = %+v, %v", cs, err)
+	if cs, err := s.Concepts(ctx, 7); err != nil || len(cs) != 1 || cs[0].Score == nil || *cs[0].Score != 2 {
+		t.Fatalf("concepts and override = %+v, %v", cs, err)
+	}
+	sessions, err := s.Sessions(ctx, 7)
+	if err != nil || len(sessions) != 1 || len(sessions[0].Answers) != 1 || sessions[0].Answers[0].Response != "my answer" || len(sessions[0].Gaps) != 1 {
+		t.Fatalf("sessions = %+v, %v", sessions, err)
+	}
+	if due, err := s.DueReviews(ctx, 1, 5); err != nil || len(due) != 1 || due[0].LastGap != "missed it" {
+		t.Fatalf("review queue = %+v, %v", due, err)
 	}
 }
