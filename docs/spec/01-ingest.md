@@ -22,13 +22,17 @@ flowchart LR
   Spine items that aren't chapters or appendices (cover, preface, index, glossary…) are skipped.
 - **ING-4** Section bodies MUST be stored as Markdown. Paragraphs, lists, tables, code blocks,
   emphasis and inline code are kept. Index-term anchors and page markers are dropped.
-- **ING-5** Images MUST be extracted to `/data/figures/` and referenced from the Markdown with their caption.
+- **ING-5** Images MUST be extracted to a folder per book under `/data/figures/` and referenced from the Markdown with their caption.
+  Figures of books imported before multi-book support stay where they are.
 - **ING-6** End-of-chapter reference lists and footnote blocks MUST be stored but flagged
   `is_reference`. They are excluded from unit word counts, from FTS and from unit text by default.
-- **ING-7** Section IDs MUST be deterministic for a given EPUB: `ch{NN}` for chapters, then `.s{NN}`
+- **ING-7** Section IDs MUST be deterministic for a given EPUB and unique within its book (two books can both have `ch05.s02`): `ch{NN}` for chapters, then `.s{NN}`
   per level in document order (`ch05.s02.s01`), and `ch{NN}.refs` for the reference block. Appendices use `app{A}`.
 - **ING-8** Re-importing the same file (same SHA-256) MUST be a no-op. Importing a different
   file for the same book MUST keep progress and assessments for units whose section ranges still exist.
+- **ING-13** Importing a file that isn't already imported MUST add it as a new book and leave the other
+  books untouched. The new book becomes the active book (DAT-7). Until ING-8's second half is built, a new
+  edition of a book is imported as a separate book.
 
 ## Unit planning
 

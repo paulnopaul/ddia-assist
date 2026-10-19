@@ -13,16 +13,23 @@ flowchart LR
 ```
 
 - **MCP-1** Every tool that returns book text, concepts or search results MUST filter to
-  the read scope (DAT-5). A chapter's reference block is in scope once any unit of that chapter is. This is what keeps tasks limited to what's been read: it's
+  the read scope (DAT-5) of one book: the unit's book when the call names a unit, otherwise the active book (MCP-9). A chapter's reference block is in scope once any unit of that chapter is. This is what keeps tasks limited to what's been read: it's
   enforced in the server, not left to the prompt.
 - **MCP-2** There are no exceptions, including for the unit about to be studied. If it isn't marked
   read yet, `get_unit` returns an error and Claude asks you to confirm you've read it. Only then does it call `mark_read`.
+
+## Which book
+
+- **MCP-9** Tools that name a unit (`get_unit` with `unit_id`, `mark_read`, `save_concepts`, `record_assessment`)
+  work on that unit's book. Concepts in `record_review` belong to one book already. Every other tool, and
+  `get_unit` without `unit_id`, works on the active book (DAT-7). With no book imported, they return an error
+  that says to import one in the web UI.
 
 ## Tools
 
 | Tool | Input | Returns / effect |
 |---|---|---|
-| `get_status` | – | Current unit, units read/studied/total, number of due reviews, 5 weakest concepts |
+| `get_status` | – | Active book's title, current unit, units read/studied/total, number of due reviews, 5 weakest concepts, and the titles of the other books |
 | `get_unit` | `unit_id?` (defaults to the next unit that is read but not yet studied) | Unit title, section IDs and Markdown, figure captions, known concepts |
 | `get_section` | `section_id` | One section's Markdown |
 | `get_figure` | `figure_id` | The image as MCP image content |
@@ -63,6 +70,11 @@ flowchart LR
   case-insensitively. Empty means the next read, unstudied unit. If several titles match, the prompt names them
   and tells Claude to ask which one first. An unknown number or title is an error that says where to find unit
   numbers. The older arg name `unit_id` is still accepted.
+  A unit given by number may belong to any book, and that book becomes the active book.
 - **MCP-7** `ddia-review` (optional arg `limit`, default 5) expands to the review instructions in [05](05-review-queue.md).
+- **MCP-10** `ddia-study` and `ddia-review` also take an optional `book` arg: a few words of a book's title, matched
+  case-insensitively. A single match becomes the active book before anything else in the prompt is resolved, so a
+  `unit` given by title is looked up in that book. No match, or several, is an error that lists the books.
+  Empty keeps the active book. The prompt text names the book the session is about.
 - **MCP-8** Prompt texts live in `internal/mcpserver/prompts/*.md` and are embedded at build time. They are
   part of the spec: changing one is a spec change.

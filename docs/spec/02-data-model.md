@@ -4,6 +4,7 @@ SQLite in WAL mode at `/data/ddia.db`. Migrations are embedded in the binary and
 
 ```mermaid
 erDiagram
+    META ||--o| BOOK : "active_book"
     BOOK ||--o{ SECTION : contains
     BOOK ||--o{ UNIT : "planned into"
     UNIT ||--|{ UNIT_SECTION : spans
@@ -19,10 +20,11 @@ erDiagram
     CONCEPT ||--o| REVIEW_ITEM : schedules
 
     BOOK { int id PK  text title  text sha256  datetime imported_at }
-    SECTION { text id PK "ch05.s03.s02"  int book_id FK  text parent_id  int level  int ord  text heading  text markdown  int words  bool is_reference }
-    FIGURE { int id PK  text section_id FK  text path  text caption }
+    META { text key PK  text value }
+    SECTION { int book_id PK  text id PK "ch05.s03.s02"  text parent_id  int level  int ord  text heading  text markdown  int words  bool is_reference }
+    FIGURE { int id PK  int book_id FK  text section_id FK  text name  text path  text caption }
     UNIT { int id PK  int book_id FK  int ord  int chapter  text title  int words  bool manual }
-    UNIT_SECTION { int unit_id FK  text section_id FK  int ord }
+    UNIT_SECTION { int unit_id FK  int book_id FK  text section_id FK  int ord }
     PROGRESS { int unit_id PK  text status "not_started|reading|read|studied"  datetime read_at  datetime studied_at }
     CONCEPT { int id PK  int unit_id FK  text name  text definition  text section_ref }
     SESSION { int id PK  text kind "study|review"  int unit_id FK  datetime started_at  datetime finished_at }
@@ -38,3 +40,10 @@ erDiagram
 - **DAT-3** Raw answers (`ANSWER.response`) MUST be stored verbatim. They're the evidence used to audit a score.
 - **DAT-4** Deleting a book MUST cascade. No other deletes are exposed.
 - **DAT-5** Units count as *in read scope* when their `PROGRESS.status` is `read` or `studied`.
+- **DAT-6** Each book's data is separate. A section is keyed by `(book_id, id)`, a figure name is unique
+  within its book, and `section_fts` carries the book ID. Units, sessions and concepts keep global integer
+  IDs, so a unit number names one unit across all books. A `section_ref` on a concept or gap is read
+  within that concept's or session's book. Upgrading a database from before multi-book support MUST keep
+  all of its data as book 1.
+- **DAT-7** The active book is stored in `meta` under `active_book`. While any book exists, exactly one is
+  active. Deleting the active book makes the oldest remaining book active.
