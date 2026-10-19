@@ -1,5 +1,5 @@
 {{define "content"}}
-<h1>Concepts</h1>
+<h1>Concepts{{with .Active}} <span class="muted">· {{.Title}}</span>{{end}}</h1>
 {{with .Data.Concepts}}
 <p class="muted">Concepts from the units you've read, weakest first.</p>
 <table>

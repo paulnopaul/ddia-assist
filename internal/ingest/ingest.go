@@ -16,9 +16,6 @@ import (
 	"github.com/paulnopaul/ddia-assist/internal/store"
 )
 
-// ErrOtherBook means a different book is already imported.
-var ErrOtherBook = errors.New("a different book is already imported; delete it first")
-
 // Result summarises an import for the confirmation page (UI-1).
 type Result struct {
 	BookID    int64
@@ -31,15 +28,13 @@ type Result struct {
 	Unchanged bool
 }
 
-// Import parses data and stores it. Re-importing the same file is a no-op (ING-8).
+// Import parses data and stores it as a new book, which becomes the active
+// book (ING-13). Re-importing the same file is a no-op (ING-8).
 func Import(ctx context.Context, st *store.Store, dataDir string, data []byte) (*Result, error) {
 	sum := sha256.Sum256(data)
 	sha := hex.EncodeToString(sum[:])
-	if cur, err := st.CurrentBook(ctx); err == nil {
-		if cur.SHA256 == sha {
-			return &Result{BookID: cur.ID, Title: cur.Title, Unchanged: true}, nil
-		}
-		return nil, ErrOtherBook
+	if cur, err := st.BookBySHA(ctx, sha); err == nil {
+		return &Result{BookID: cur.ID, Title: cur.Title, Unchanged: true}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return nil, err
 	}
@@ -48,7 +43,8 @@ func Import(ctx context.Context, st *store.Store, dataDir string, data []byte) (
 	if err != nil {
 		return nil, err
 	}
-	figDir := filepath.Join(dataDir, "figures")
+	// One folder per book, so figure names can repeat across books (ING-5, DAT-6).
+	figDir := filepath.Join(dataDir, "figures", sha[:12])
 	if err := os.MkdirAll(figDir, 0o755); err != nil {
 		return nil, err
 	}

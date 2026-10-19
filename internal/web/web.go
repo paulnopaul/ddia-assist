@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/paulnopaul/ddia-assist/internal/ingest"
 	"github.com/paulnopaul/ddia-assist/internal/store"
@@ -86,6 +87,8 @@ type view struct {
 	Version string
 	Flash   string
 	Error   string
+	Books   []store.BookSummary // for the header's book switcher (UI-10)
+	Active  *store.BookSummary
 	Data    any
 }
 
@@ -100,7 +103,8 @@ func Handler(st *store.Store, version, dataDir string) http.Handler {
 	mux.HandleFunc("GET /{$}", s.dashboard)
 	mux.HandleFunc("GET /import", s.importPage)
 	mux.HandleFunc("POST /import", s.importPost)
-	mux.HandleFunc("POST /book/delete", s.deleteBook)
+	mux.HandleFunc("POST /books/active", s.activateBook)
+	mux.HandleFunc("POST /books/{id}/delete", s.deleteBook)
 	mux.HandleFunc("GET /plan", s.plan)
 	mux.HandleFunc("GET /concepts", s.concepts)
 	mux.HandleFunc("GET /units/{id}", s.unit)
@@ -114,6 +118,17 @@ func Handler(st *store.Store, version, dataDir string) http.Handler {
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
 	v := view{Title: title, Version: s.version, Data: data, Flash: r.URL.Query().Get("flash"), Error: r.URL.Query().Get("error")}
+	books, err := s.st.Books(r.Context())
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	v.Books = books
+	for i := range books {
+		if books[i].Active {
+			v.Active = &books[i]
+		}
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.pages[name].ExecuteTemplate(w, "layout", v); err != nil {
 		slog.Error("render", "page", name, "err", err)
@@ -151,12 +166,9 @@ func (s *server) healthz(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok\n"))
 }
 
+// importPage is the Books page: every book, switch, delete and import (UI-1, UI-9).
 func (s *server) importPage(w http.ResponseWriter, r *http.Request) {
-	data := map[string]any{}
-	if b, err := s.st.CurrentBook(r.Context()); err == nil {
-		data["Book"] = b
-	}
-	s.render(w, r, "import", "Import", data)
+	s.render(w, r, "import", "Books", map[string]any{})
 }
 
 const maxUpload = 200 << 20
@@ -183,22 +195,42 @@ func (s *server) importPost(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/plan", nil, "This book is already imported; nothing changed.")
 		return
 	}
-	data2 := map[string]any{"Result": res}
-	if b, err := s.st.CurrentBook(r.Context()); err == nil {
-		data2["Book"] = b
-	}
-	s.render(w, r, "import", "Import", data2)
+	s.render(w, r, "import", "Books", map[string]any{"Result": res})
 }
 
-func (s *server) deleteBook(w http.ResponseWriter, r *http.Request) {
-	b, err := s.st.CurrentBook(r.Context())
+// activateBook switches the active book (UI-9, UI-10, DAT-7).
+func (s *server) activateBook(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.FormValue("book"), 10, 64)
 	if err == nil {
-		err = s.st.DeleteBook(r.Context(), b.ID)
+		err = s.st.SetActiveBook(r.Context(), id)
 	}
 	if errors.Is(err, store.ErrNotFound) {
-		err = nil
+		err = errors.New("no such book")
+	}
+	// A unit page belongs to one book, so after switching go to the dashboard instead.
+	target := referer(r, "/")
+	if strings.HasPrefix(target, "/units/") {
+		target = "/"
+	}
+	back(w, r, target, err, "")
+}
+
+// deleteBook deletes one book and all of its progress (UI-9, DAT-4).
+func (s *server) deleteBook(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err == nil {
+		err = s.st.DeleteBook(r.Context(), id)
 	}
 	back(w, r, "/import", err, "Book deleted.")
+}
+
+// activeBook returns the active book, or nil if no book is imported yet.
+func (s *server) activeBook(r *http.Request) (*store.Book, error) {
+	b, err := s.st.ActiveBook(r.Context())
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	return b, err
 }
 
 type chapterView struct {
@@ -207,7 +239,11 @@ type chapterView struct {
 }
 
 func (s *server) plan(w http.ResponseWriter, r *http.Request) {
-	units, err := s.st.Units(r.Context())
+	var units []store.Unit
+	b, err := s.activeBook(r)
+	if err == nil && b != nil {
+		units, err = s.st.Units(r.Context(), b.ID)
+	}
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -241,7 +277,12 @@ func (s *server) unit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	data := map[string]any{"Unit": u}
+	book, err := s.st.Book(r.Context(), u.BookID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	data := map[string]any{"Unit": u, "Book": book}
 	if err := s.unitExtras(r, id, data); err != nil {
 		s.fail(w, err)
 		return

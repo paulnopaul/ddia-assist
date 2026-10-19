@@ -1,6 +1,6 @@
 {{define "content"}}
 {{with .Data.Unit}}
-<p class="muted"><a href="/plan">← Reading plan</a> · Chapter {{.Chapter}}</p>
+<p class="muted"><a href="/plan">← Reading plan</a> · {{$.Data.Book.Title}}{{if not $.Active}}{{else if ne $.Active.ID .BookID}} (not the active book){{end}} · Chapter {{.Chapter}}</p>
 <h1><span class="muted">#{{.ID}}</span> {{.Title}}</h1>
 <p><span class="pill s-{{.Status}}">{{statusLabel .Status}}</span> · {{.Words}} words (≈ {{pages .Words}} pages){{with .ReadAt}} · read {{.}}{{end}}</p>
 {{$id := .ID}}{{$cur := .Status}}

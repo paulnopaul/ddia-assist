@@ -65,7 +65,7 @@ func (e *env) call(name string, args any) (string, bool) {
 }
 
 func (e *env) units() []store.Unit {
-	us, err := e.st.Units(context.Background())
+	us, err := e.st.Units(context.Background(), active(e.t, e.st))
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -162,4 +162,14 @@ func TestGetStatus(t *testing.T) {
 	if isErr || json.Unmarshal([]byte(out), &st) != nil || st.UnitsRead != 1 || st.NextToStudy == nil || st.NextToRead == nil {
 		t.Fatalf("status: %s", out)
 	}
+}
+
+// active returns the active book's ID.
+func active(t *testing.T, st *store.Store) int64 {
+	t.Helper()
+	b, err := st.ActiveBook(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b.ID
 }

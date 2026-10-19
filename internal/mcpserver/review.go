@@ -33,21 +33,33 @@ func (s *server) addReview(srv *mcp.Server) {
 		Name:        "ddia-review",
 		Title:       "Review weak concepts",
 		Description: "Short spaced-review questions on concepts that are due.",
-		Arguments:   []*mcp.PromptArgument{{Name: "limit", Description: "How many concepts to review (default 5)."}},
+		Arguments: []*mcp.PromptArgument{
+			{Name: "limit", Description: "How many concepts to review (default 5)."},
+			{Name: "book", Description: bookArg},
+		},
 	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+		book, err := s.resolveBook(ctx, req.Params.Arguments["book"])
+		if err != nil {
+			return nil, err
+		}
 		limit := 5
 		if n, err := strconv.Atoi(strings.TrimSpace(req.Params.Arguments["limit"])); err == nil && n > 0 {
 			limit = n
 		}
+		text := strings.NewReplacer("{{LIMIT}}", strconv.Itoa(limit), "{{BOOK}}", bookLine(book)).Replace(promptText("ddia-review"))
 		return &mcp.GetPromptResult{
-			Description: "DDIA review session",
-			Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: strings.ReplaceAll(promptText("ddia-review"), "{{LIMIT}}", strconv.Itoa(limit))}}},
+			Description: "Review session",
+			Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: text}}},
 		}, nil
 	})
 }
 
 func (s *server) getDueReviews(ctx context.Context, _ *mcp.CallToolRequest, in dueIn) (*mcp.CallToolResult, dueOut, error) {
-	d, err := s.st.DueReviews(ctx, in.Limit)
+	b, err := s.activeBook(ctx)
+	if err != nil {
+		return nil, dueOut{}, err
+	}
+	d, err := s.st.DueReviews(ctx, b.ID, in.Limit)
 	return nil, dueOut{Due: d}, err
 }
 
@@ -58,5 +70,3 @@ func (s *server) recordReview(ctx context.Context, _ *mcp.CallToolRequest, in st
 	}
 	return nil, reviewOut{NextDueAt: st.DueAt, IntervalDays: st.Interval, Streak: st.Streak, Mastered: st.Mastered}, nil
 }
-
-func (s *server) dueCount(ctx context.Context) (int, error) { return s.st.DueCount(ctx) }

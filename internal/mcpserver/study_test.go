@@ -114,7 +114,7 @@ func TestRecordAssessment_SES12_MarksStudied_MCP5_Idempotent(t *testing.T) {
 
 func TestPrompt_MCP6_DDIAStudy(t *testing.T) {
 	e := setup(t, true)
-	units, err := e.st.Units(context.Background())
+	units, err := e.st.Units(context.Background(), active(t, e.st))
 	if err != nil || len(units) < 2 {
 		t.Fatalf("units: %v %v", units, err)
 	}
@@ -161,7 +161,7 @@ func TestPrompt_MCP6_DDIAStudy(t *testing.T) {
 
 func TestPrompt_MCP6_AmbiguousTitleAsksWhichUnit(t *testing.T) {
 	e := setup(t, true)
-	units, _ := e.st.Units(context.Background())
+	units, _ := e.st.Units(context.Background(), active(t, e.st))
 	ctx := context.Background()
 	for _, u := range units[:2] {
 		if err := e.st.Rename(ctx, u.ID, "Shared words "+u.Title); err != nil {
