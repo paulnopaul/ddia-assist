@@ -8,7 +8,9 @@
   :root { --fg:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea; --bg:#fff; --accent:#0a66c2; --ok:#1a7f37; --warn:#b35900; --bad:#c62828; }
   @media (prefers-color-scheme: dark) { :root { --fg:#f2f2f7; --muted:#a1a1a6; --line:#38383a; --bg:#1c1c1e; --accent:#64a8ff; --ok:#4ac26b; --warn:#f0a050; --bad:#ff6b6b; } }
   body { font: 15px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); max-width: 960px; margin: 0 auto; padding: 16px; }
-  nav { display: flex; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 16px; }
+  nav { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 16px; }
+  nav form { margin-left: auto; }
+  nav select { max-width: 280px; }
   nav a { color: var(--fg); text-decoration: none; font-weight: 600; }
   a { color: var(--accent); }
   table { border-collapse: collapse; width: 100%; }
@@ -29,7 +31,11 @@
 </style>
 </head>
 <body>
-<nav><a href="/">Dashboard</a><a href="/plan">Reading plan</a><a href="/concepts">Concepts</a><a href="/import">Import</a></nav>
+<nav><a href="/">Dashboard</a><a href="/plan">Reading plan</a><a href="/concepts">Concepts</a><a href="/import">Books</a>
+{{if .Books}}<form method="post" action="/books/active"><label class="muted" for="book">Book</label>
+  <select id="book" name="book" onchange="this.form.submit()">{{range .Books}}<option value="{{.ID}}"{{if .Active}} selected{{end}}>{{.Title}}</option>{{end}}</select>
+  <noscript><button>Switch</button></noscript></form>{{end}}
+</nav>
 {{with .Flash}}<div class="flash">{{.}}</div>{{end}}
 {{with .Error}}<div class="flash error">{{.}}</div>{{end}}
 {{template "content" .}}

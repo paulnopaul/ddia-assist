@@ -27,7 +27,11 @@ func Words(n int, marker string) string {
 // HTMLBook returns an EPUB 3 laid out like an O'Reilly book: a preface
 // (skipped), two chapters with nested sections, a figure, a note, a code
 // block and a references block.
-func HTMLBook() []byte {
+func HTMLBook() []byte { return HTMLBookTitled("Test Book") }
+
+// HTMLBookTitled is HTMLBook with another title: a different file whose section
+// IDs and figure names are the same as HTMLBook's.
+func HTMLBookTitled(title string) []byte {
 	ch1 := `<section data-type="chapter"><div class="chapter"><h1>Chapter 1. Storage</h1>
 <p>` + Words(300, "introword") + `</p>
 <section data-type="sect1"><div class="sect1"><h1>Logs</h1>
@@ -53,7 +57,7 @@ get(k)</pre>
 <section data-type="sect1"><div class="sect1"><h1>Quorums</h1><p>` + Words(1500, "quorumword") + `</p></div></section>
 </div></section>`
 	preface := `<section data-type="preface"><h1>Preface</h1><p>` + Words(100, "prefaceword") + `</p></section>`
-	return Build("Test Book", []Doc{{Name: "preface.html", Body: preface}, {Name: "ch01.html", Body: ch1}, {Name: "ch02.html", Body: ch2}},
+	return Build(title, []Doc{{Name: "preface.html", Body: preface}, {Name: "ch01.html", Body: ch1}, {Name: "ch02.html", Body: ch2}},
 		map[string][]byte{"assets/fig1.png": PNG})
 }
 

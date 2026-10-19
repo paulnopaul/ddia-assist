@@ -41,6 +41,7 @@ type Section struct {
 
 type Unit struct {
 	ID       int64
+	BookID   int64
 	Ord      int
 	Chapter  int
 	Title    string
@@ -61,10 +62,11 @@ type Figure struct {
 	Caption   string
 }
 
-// CurrentBook returns the imported book, or ErrNotFound.
-func (s *Store) CurrentBook(ctx context.Context) (*Book, error) {
+const bookCols = `id, title, sha256, imported_at`
+
+func (s *Store) bookWhere(ctx context.Context, where string, args ...any) (*Book, error) {
 	var b Book
-	err := s.DB.QueryRowContext(ctx, `SELECT id, title, sha256, imported_at FROM book ORDER BY id LIMIT 1`).
+	err := s.DB.QueryRowContext(ctx, `SELECT `+bookCols+` FROM book WHERE `+where, args...).
 		Scan(&b.ID, &b.Title, &b.SHA256, &b.ImportedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -72,7 +74,70 @@ func (s *Store) CurrentBook(ctx context.Context) (*Book, error) {
 	return &b, err
 }
 
-// SaveBook stores a parsed book, its figures and its unit plan in one transaction.
+// Book returns one book by ID.
+func (s *Store) Book(ctx context.Context, id int64) (*Book, error) {
+	return s.bookWhere(ctx, `id = ?`, id)
+}
+
+// BookBySHA returns the book imported from the file with this SHA-256 (ING-8).
+func (s *Store) BookBySHA(ctx context.Context, sha string) (*Book, error) {
+	return s.bookWhere(ctx, `sha256 = ?`, sha)
+}
+
+// ActiveBook returns the book the UI and MCP tools work on (DAT-7), or ErrNotFound.
+func (s *Store) ActiveBook(ctx context.Context) (*Book, error) {
+	return s.bookWhere(ctx, `id = (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'active_book')`)
+}
+
+// SetActiveBook makes id the active book (DAT-7).
+func (s *Store) SetActiveBook(ctx context.Context, id int64) error {
+	return s.withTx(ctx, func(tx *sql.Tx) error { return setActive(ctx, tx, id) })
+}
+
+func setActive(ctx context.Context, tx *sql.Tx, id int64) error {
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM book WHERE id = ?`, id).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO meta(key, value) VALUES ('active_book', ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, fmt.Sprint(id))
+	return err
+}
+
+// BookSummary is a book with its unit counts, for the Books page (UI-9).
+type BookSummary struct {
+	Book
+	Active               bool
+	Units, Read, Studied int
+}
+
+// Books lists every book, oldest first, with unit counts.
+func (s *Store) Books(ctx context.Context) ([]BookSummary, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT b.id, b.title, b.sha256, b.imported_at,
+		b.id = COALESCE((SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'active_book'), 0),
+		count(u.id), COALESCE(SUM(p.status IN ('read', 'studied')), 0), COALESCE(SUM(p.status = 'studied'), 0)
+		FROM book b LEFT JOIN unit u ON u.book_id = b.id LEFT JOIN progress p ON p.unit_id = u.id
+		GROUP BY b.id ORDER BY b.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []BookSummary
+	for rows.Next() {
+		var b BookSummary
+		if err := rows.Scan(&b.ID, &b.Title, &b.SHA256, &b.ImportedAt, &b.Active, &b.Units, &b.Read, &b.Studied); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+// SaveBook stores a parsed book, its figures and its unit plan in one
+// transaction, and makes it the active book (ING-13).
 func (s *Store) SaveBook(ctx context.Context, title, sha string, secs []epub.Section, figs []Figure, units []plan.Unit) (int64, error) {
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -85,13 +150,13 @@ func (s *Store) SaveBook(ctx context.Context, title, sha string, secs []epub.Sec
 	}
 	bookID, _ := res.LastInsertId()
 	for i, sc := range secs {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO section(id, book_id, parent_id, chapter, level, ord, heading, markdown, words, is_reference)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO section(book_id, id, parent_id, chapter, level, ord, heading, markdown, words, is_reference)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			sc.ID, bookID, nullable(sc.ParentID), sc.Chapter, sc.Level, i, sc.Heading, sc.Markdown, sc.Words, sc.IsReference); err != nil {
+			bookID, sc.ID, nullable(sc.ParentID), sc.Chapter, sc.Level, i, sc.Heading, sc.Markdown, sc.Words, sc.IsReference); err != nil {
 			return 0, fmt.Errorf("section %s: %w", sc.ID, err)
 		}
 		if !sc.IsReference {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO section_fts(section_id, heading, markdown) VALUES (?, ?, ?)`, sc.ID, sc.Heading, sc.Markdown); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO section_fts(book_id, section_id, heading, markdown) VALUES (?, ?, ?, ?)`, bookID, sc.ID, sc.Heading, sc.Markdown); err != nil {
 				return 0, err
 			}
 		}
@@ -107,6 +172,9 @@ func (s *Store) SaveBook(ctx context.Context, title, sha string, secs []epub.Sec
 			return 0, err
 		}
 	}
+	if err := setActive(ctx, tx, bookID); err != nil {
+		return 0, err
+	}
 	return bookID, tx.Commit()
 }
 
@@ -118,7 +186,7 @@ func insertUnit(ctx context.Context, tx *sql.Tx, bookID int64, ord, chapter int,
 	}
 	unitID, _ := res.LastInsertId()
 	for j, id := range ids {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO unit_section(unit_id, section_id, ord) VALUES (?, ?, ?)`, unitID, id, j); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO unit_section(unit_id, book_id, section_id, ord) VALUES (?, ?, ?, ?)`, unitID, bookID, id, j); err != nil {
 			return err
 		}
 	}
@@ -126,33 +194,40 @@ func insertUnit(ctx context.Context, tx *sql.Tx, bookID int64, ord, chapter int,
 	return err
 }
 
-// DeleteBook removes the book and everything that hangs off it (DAT-4).
+// DeleteBook removes the book and everything that hangs off it (DAT-4). If it
+// was the active book, the oldest remaining book becomes active (DAT-7).
 func (s *Store) DeleteBook(ctx context.Context, id int64) error {
-	tx, err := s.DB.BeginTx(ctx, nil)
-	if err != nil {
+	return s.withTx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM section_fts WHERE book_id = ?`, id); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM book WHERE id = ?`, id); err != nil {
+			return err
+		}
+		var next sql.NullInt64
+		if err := tx.QueryRowContext(ctx, `SELECT MIN(id) FROM book`).Scan(&next); err != nil {
+			return err
+		}
+		if !next.Valid {
+			_, err := tx.ExecContext(ctx, `DELETE FROM meta WHERE key = 'active_book'`)
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE meta SET value = ? WHERE key = 'active_book' AND value = ?`, fmt.Sprint(next.Int64), fmt.Sprint(id))
 		return err
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `DELETE FROM section_fts WHERE section_id IN (SELECT id FROM section WHERE book_id = ?)`, id); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM book WHERE id = ?`, id); err != nil {
-		return err
-	}
-	return tx.Commit()
+	})
 }
 
-const unitCols = `u.id, u.ord, u.chapter, u.title, u.words, u.manual, p.status, COALESCE(p.read_at, '')`
+const unitCols = `u.id, u.book_id, u.ord, u.chapter, u.title, u.words, u.manual, p.status, COALESCE(p.read_at, '')`
 
 func scanUnit(sc interface{ Scan(...any) error }) (Unit, error) {
 	var u Unit
-	err := sc.Scan(&u.ID, &u.Ord, &u.Chapter, &u.Title, &u.Words, &u.Manual, &u.Status, &u.ReadAt)
+	err := sc.Scan(&u.ID, &u.BookID, &u.Ord, &u.Chapter, &u.Title, &u.Words, &u.Manual, &u.Status, &u.ReadAt)
 	return u, err
 }
 
-// Units lists all units in reading order, with section headings.
-func (s *Store) Units(ctx context.Context) ([]Unit, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT `+unitCols+` FROM unit u JOIN progress p ON p.unit_id = u.id ORDER BY u.ord`)
+// Units lists a book's units in reading order, with section headings.
+func (s *Store) Units(ctx context.Context, bookID int64) ([]Unit, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT `+unitCols+` FROM unit u JOIN progress p ON p.unit_id = u.id WHERE u.book_id = ? ORDER BY u.ord`, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +246,8 @@ func (s *Store) Units(ctx context.Context) ([]Unit, error) {
 		return nil, err
 	}
 	srows, err := s.DB.QueryContext(ctx, `SELECT us.unit_id, s.id, COALESCE(s.parent_id, ''), s.chapter, s.level, s.heading, s.words
-		FROM unit_section us JOIN section s ON s.id = us.section_id ORDER BY us.unit_id, us.ord`)
+		FROM unit_section us JOIN section s ON s.book_id = us.book_id AND s.id = us.section_id
+		WHERE us.book_id = ? ORDER BY us.unit_id, us.ord`, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +279,7 @@ func (s *Store) Unit(ctx context.Context, id int64, withText bool) (*Unit, error
 		text = `s.markdown`
 	}
 	rows, err := s.DB.QueryContext(ctx, `SELECT s.id, COALESCE(s.parent_id, ''), s.chapter, s.level, s.heading, `+text+`, s.words
-		FROM unit_section us JOIN section s ON s.id = us.section_id WHERE us.unit_id = ? ORDER BY us.ord`, id)
+		FROM unit_section us JOIN section s ON s.book_id = us.book_id AND s.id = us.section_id WHERE us.unit_id = ? ORDER BY us.ord`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -305,8 +381,9 @@ func (s *Store) SplitAt(ctx context.Context, unitID int64, sectionID string) err
 		}
 		var heading string
 		var moved int
-		if err := tx.QueryRowContext(ctx, `SELECT s.heading, (SELECT COALESCE(SUM(s2.words), 0) FROM unit_section us2 JOIN section s2 ON s2.id = us2.section_id WHERE us2.unit_id = ? AND us2.ord >= ?)
-			FROM section s WHERE s.id = ?`, unitID, splitOrd, sectionID).Scan(&heading, &moved); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT s.heading, (SELECT COALESCE(SUM(s2.words), 0) FROM unit_section us2
+			JOIN section s2 ON s2.book_id = us2.book_id AND s2.id = us2.section_id WHERE us2.unit_id = ? AND us2.ord >= ?)
+			FROM section s WHERE s.book_id = ? AND s.id = ?`, unitID, splitOrd, bookID, sectionID).Scan(&heading, &moved); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE unit SET ord = ord + 1 WHERE book_id = ? AND ord > ?`, bookID, ord); err != nil {

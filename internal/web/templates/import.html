@@ -1,17 +1,25 @@
 {{define "content"}}
-<h1>Import</h1>
-{{with .Data.Book}}
-<p>Imported: <b>{{.Title}}</b> <span class="muted">({{.ImportedAt}})</span></p>
-<form method="post" action="/book/delete" onsubmit="return confirm('Delete the book and all progress, sessions and scores?')">
-  <button>Delete book and all progress</button>
-</form>
-{{else}}
-<p>Upload your EPUB. It stays on this machine: the text is only ever sent to your own Claude conversations.</p>
+<h1>Books</h1>
+{{with .Books}}
+<table>
+  <tr><th>Book</th><th>Read</th><th>Studied</th><th></th></tr>
+  {{range .}}<tr>
+    <td><b>{{.Title}}</b>{{if .Active}} <span class="pill s-studied">active</span>{{end}}<br><span class="muted">imported {{.ImportedAt}}</span></td>
+    <td>{{.Read}}/{{.Units}}</td>
+    <td>{{.Studied}}/{{.Units}}</td>
+    <td>
+      {{if not .Active}}<form class="inline" method="post" action="/books/active"><input type="hidden" name="book" value="{{.ID}}"><button>Make active</button></form>{{end}}
+      <form class="inline" method="post" action="/books/{{.ID}}/delete" onsubmit="return confirm('Delete this book and all of its progress, sessions and scores?')"><button>Delete</button></form>
+    </td>
+  </tr>{{end}}
+</table>
+{{end}}
+<h2>Import a book</h2>
+<p>Upload an EPUB. It's added as a new book and becomes the active one. It stays on this machine: the text is only ever sent to your own Claude conversations.</p>
 <form method="post" action="/import" enctype="multipart/form-data">
   <input type="file" name="epub" accept=".epub,application/epub+zip" required>
   <button>Import</button>
 </form>
-{{end}}
 {{with .Data.Result}}
 <h2>Import summary</h2>
 <table>

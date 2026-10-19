@@ -1,5 +1,5 @@
 {{define "content"}}
-<h1>Reading plan</h1>
+<h1>Reading plan{{with .Active}} <span class="muted">· {{.Title}}</span>{{end}}</h1>
 {{if not .Data.Units}}<p>No book yet. <a href="/import">Import your EPUB</a>.</p>{{end}}
 {{range .Data.Chapters}}
 <h2>Chapter {{.Number}}</h2>

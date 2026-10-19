@@ -10,11 +10,11 @@ flowchart LR
     Home --> Concepts["Concepts<br/>scores, due dates"]
     Plan --> Unit["Unit<br/>status, sessions,<br/>answers, scores"]
     Concepts --> Unit
-    Home --> Import["Import EPUB"]
+    Home --> Books["Books<br/>import, switch, delete"]
 ```
 
 - **UI-1 Import.** Upload an EPUB, see a parse summary (chapters, sections, figures, word counts,
-  proposed units), confirm.
+  proposed units), confirm. Import lives on the Books page (UI-9) and is always available.
 - **UI-2 Reading plan.** Units grouped by chapter, showing word count, approximate page count, status
   and the latest average score. Units can be merged, split at a heading or renamed (ING-11, ING-12).
 - **UI-3 Mark read / unread.** One button per unit. After it's clicked, the page shows a hint: "Open Claude
@@ -29,3 +29,8 @@ flowchart LR
 - **UI-8 Unit numbers.** The reading plan, unit page and dashboard show each unit's number (`#12`). The unit
   page says how to study it: pick `ddia-study` in Claude Desktop and enter that number, or leave it empty for
   the next read unit (MCP-6).
+- **UI-9 Books page.** Lists every book with its units read and studied, marks the active one, and lets you
+  make another book active or delete one (with a confirmation; DAT-4, DAT-7). Shows the import form.
+- **UI-10 Active book.** Every page shows the active book's title in the header with a switcher. The dashboard,
+  reading plan and concepts page cover the active book only. A unit page works for any unit and says which book
+  it belongs to.

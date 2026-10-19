@@ -1,6 +1,7 @@
 # ddia-assist
 
-A small, locally hosted helper for working through *Designing Data-Intensive Applications*.
+A small, locally hosted helper for working through *Designing Data-Intensive Applications*,
+or any other technical book you have as an EPUB. You can keep several books and switch between them.
 You read the book in your own e-reader. This service tracks what you've read and gives
 Claude Desktop (over MCP) the exact text of each unit, so Claude can quiz you on it, set
 short reasoning tasks, and write the results back here. The service makes no LLM calls
@@ -39,6 +40,11 @@ For local development without Docker: `go run ./cmd/ddia serve -data ./data`.
    study the next read unit, or enter a unit's number (shown as `#12` on the plan) or a few words of its title.
    Claude asks you to explain the unit from memory, probes the gaps, gives one short task, scores each concept and saves the result.
 4. When reviews are due (the dashboard says so), run the **ddia-review** prompt.
+
+To add another book, upload it on the **Books** page (http://localhost:8080/import). The newest import becomes the
+active book; switch with the picker in the header. The plan, dashboard, concepts and review queue all follow the
+active book. Both prompts also take an optional **book** argument (a few words of the title) to switch first, and a
+unit number from any book switches to that book.
 
 Claude can only see units you've marked read, so tasks never reach ahead of where you are.
 

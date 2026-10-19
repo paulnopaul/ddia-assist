@@ -61,21 +61,21 @@ func (s *Store) Concepts(ctx context.Context, unitID int64) ([]Concept, error) {
 	return scanConcepts(rows)
 }
 
-// ConceptsInScope returns concepts of read or studied units, weakest first.
-func (s *Store) ConceptsInScope(ctx context.Context) ([]Concept, error) {
+// ConceptsInScope returns concepts of a book's read or studied units, weakest first.
+func (s *Store) ConceptsInScope(ctx context.Context, bookID int64) ([]Concept, error) {
 	rows, err := s.DB.QueryContext(ctx, `SELECT `+conceptCols+` FROM concept_current cc
 		JOIN unit u ON u.id = cc.unit_id JOIN progress p ON p.unit_id = u.id
-		WHERE p.status IN ('read', 'studied')
-		ORDER BY cc.score IS NULL, cc.score, u.ord, cc.concept_id`)
+		WHERE u.book_id = ? AND p.status IN ('read', 'studied')
+		ORDER BY cc.score IS NULL, cc.score, u.ord, cc.concept_id`, bookID)
 	if err != nil {
 		return nil, err
 	}
 	return scanConcepts(rows)
 }
 
-// WeakConcepts returns in-scope concepts whose current score is at most 1.
-func (s *Store) WeakConcepts(ctx context.Context, limit int) ([]Concept, error) {
-	all, err := s.ConceptsInScope(ctx)
+// WeakConcepts returns a book's in-scope concepts whose current score is at most 1.
+func (s *Store) WeakConcepts(ctx context.Context, bookID int64, limit int) ([]Concept, error) {
+	all, err := s.ConceptsInScope(ctx, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (s *Store) RecordAssessment(ctx context.Context, a Assessment) (int64, bool
 	if len(unitConcepts) == 0 {
 		problems = append(problems, "this unit has no concepts yet; call save_concepts first")
 	}
-	allowed, err := s.allowedConcepts(ctx, u.Ord)
+	allowed, err := s.allowedConcepts(ctx, u.BookID, u.Ord)
 	if err != nil {
 		return 0, false, err
 	}
@@ -253,7 +253,7 @@ func (s *Store) RecordAssessment(ctx context.Context, a Assessment) (int64, bool
 		}
 		if g.SectionRef == "" {
 			problems = append(problems, fmt.Sprintf("gap %d: section_ref is required (MCP-4)", i))
-		} else if ok, err := s.SectionInScope(ctx, g.SectionRef); err != nil {
+		} else if ok, err := s.SectionInScope(ctx, u.BookID, g.SectionRef); err != nil {
 			return 0, false, err
 		} else if !ok {
 			problems = append(problems, fmt.Sprintf("gap %d: section_ref %q is not a section the user has read", i, g.SectionRef))
@@ -305,10 +305,10 @@ func (s *Store) RecordAssessment(ctx context.Context, a Assessment) (int64, bool
 	return sessionID, false, err
 }
 
-// allowedConcepts are concepts of read/studied units up to and including the unit at ord.
-func (s *Store) allowedConcepts(ctx context.Context, ord int) (map[int64]bool, error) {
+// allowedConcepts are concepts of the book's read/studied units up to and including the unit at ord.
+func (s *Store) allowedConcepts(ctx context.Context, bookID int64, ord int) (map[int64]bool, error) {
 	rows, err := s.DB.QueryContext(ctx, `SELECT c.id FROM concept c JOIN unit u ON u.id = c.unit_id JOIN progress p ON p.unit_id = u.id
-		WHERE u.ord <= ? AND p.status IN ('read', 'studied')`, ord)
+		WHERE u.book_id = ? AND u.ord <= ? AND p.status IN ('read', 'studied')`, bookID, ord)
 	if err != nil {
 		return nil, err
 	}

@@ -23,7 +23,7 @@ func TestRealBook(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("%+v", *res)
-	units, _ := st.Units(context.Background())
+	units, _ := st.Units(context.Background(), active(t, st))
 	for _, u := range units {
 		t.Logf("ch%02d  %5d words  %2d sections  %s", u.Chapter, u.Words, len(u.Sections), u.Title)
 	}

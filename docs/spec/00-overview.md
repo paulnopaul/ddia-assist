@@ -8,9 +8,14 @@ on the gaps, applying the ideas to a small concrete problem, and coming back to 
 later. Doing that by hand with a chatbot is clumsy. You have to paste text, remember where
 you were, and nothing is recorded.
 
+The tool started with DDIA, which is why it is called `ddia`, but it works for any technical
+book you have as an EPUB. You can import several books and switch between them; each keeps its
+own plan, progress, concepts and review queue.
+
 ## Goals
 
-- Split the book into reading units of about 10–20 pages that each form a logically complete block.
+- Hold several books at once, with one *active book* that the UI and Claude work on.
+- Split each book into reading units of about 10–20 pages that each form a logically complete block.
 - Track reading progress per unit.
 - Let Claude Desktop run a structured study session on a unit, using the book's exact text,
   and write the results back.
@@ -38,7 +43,7 @@ flowchart TB
             Stdio["ddia mcp<br/>(stdio, spawned per Claude session)"]
             Core["core: ingest · planner · scope · scheduler"]
             DB[("SQLite (WAL) + FTS5<br/>/data/ddia.db")]
-            Fig[/"/data/figures"/]
+            Fig[/"/data/figures/&lt;book&gt;"/]
             Web --> Core
             Stdio --> Core
             Core --> DB
@@ -62,9 +67,11 @@ for a single user.
 
 | Term | Meaning |
 |---|---|
-| Section | A node in the book's heading tree (chapter, h2, h3…), with a stable ID like `ch05.s03.s02`. |
+| Book | One imported EPUB, with its own sections, units, progress, concepts and review queue. |
+| Active book | The book the web UI shows and the MCP tools work on unless a unit says otherwise. |
+| Section | A node in the book's heading tree (chapter, h2, h3…), with a stable ID like `ch05.s03.s02`, unique within its book. |
 | Unit | A run of consecutive sections inside one chapter, sized for one reading sitting. The unit of progress. |
-| Read scope | All units marked read or studied. The only content MCP tools return. |
+| Read scope | All units of a book marked read or studied. The only content MCP tools return. |
 | Concept | A named idea from the book (e.g. "read repair"), tied to the unit that introduces it. |
 | Session | One study or review conversation in Claude, recorded through MCP. |
 | Score | A per-concept rating from 0 to 3: missing, shaky, solid, could teach it. |

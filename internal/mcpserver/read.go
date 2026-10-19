@@ -21,6 +21,7 @@ type unitRef struct {
 
 type statusOut struct {
 	Book         string   `json:"book"`
+	OtherBooks   []string `json:"other_books,omitempty"`
 	UnitsTotal   int      `json:"units_total"`
 	UnitsRead    int      `json:"units_read"`
 	UnitsStudied int      `json:"units_studied"`
@@ -88,14 +89,21 @@ func (s *server) addReadTools(srv *mcp.Server) {
 
 func (s *server) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, statusOut, error) {
 	var out statusOut
-	b, err := s.st.CurrentBook(ctx)
-	if errors.Is(err, store.ErrNotFound) {
-		return nil, out, errors.New("no book imported yet; ask the user to import their EPUB at http://localhost:8080/import")
-	} else if err != nil {
+	b, err := s.activeBook(ctx)
+	if err != nil {
 		return nil, out, err
 	}
 	out.Book = b.Title
-	counts, err := s.st.Counts(ctx)
+	books, err := s.st.Books(ctx)
+	if err != nil {
+		return nil, out, err
+	}
+	for _, o := range books {
+		if o.ID != b.ID {
+			out.OtherBooks = append(out.OtherBooks, o.Title)
+		}
+	}
+	counts, err := s.st.Counts(ctx, b.ID)
 	if err != nil {
 		return nil, out, err
 	}
@@ -104,13 +112,13 @@ func (s *server) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ struct
 	}
 	out.UnitsRead = counts[store.StatusRead] + counts[store.StatusStudied]
 	out.UnitsStudied = counts[store.StatusStudied]
-	if u, err := s.st.NextUnit(ctx, store.StatusRead); err == nil {
+	if u, err := s.st.NextUnit(ctx, b.ID, store.StatusRead); err == nil {
 		out.NextToStudy = &unitRef{u.ID, u.Title}
 	}
-	if u, err := s.st.NextUnit(ctx, store.StatusNotStarted, store.StatusReading); err == nil {
+	if u, err := s.st.NextUnit(ctx, b.ID, store.StatusNotStarted, store.StatusReading); err == nil {
 		out.NextToRead = &unitRef{u.ID, u.Title}
 	}
-	if err := s.statusExtras(ctx, &out); err != nil {
+	if err := s.statusExtras(ctx, b.ID, &out); err != nil {
 		return nil, out, err
 	}
 	return nil, out, nil
@@ -119,7 +127,11 @@ func (s *server) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ struct
 func (s *server) getUnit(ctx context.Context, _ *mcp.CallToolRequest, in unitIn) (*mcp.CallToolResult, any, error) {
 	id := in.UnitID
 	if id == 0 {
-		u, err := s.st.NextUnit(ctx, store.StatusRead)
+		b, err := s.activeBook(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		u, err := s.st.NextUnit(ctx, b.ID, store.StatusRead)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, nil, errors.New("no unit is waiting to be studied: every read unit is already studied. Ask the user which unit they just finished, confirm, then call mark_read")
 		} else if err != nil {
@@ -148,7 +160,11 @@ func (s *server) getUnit(ctx context.Context, _ *mcp.CallToolRequest, in unitIn)
 }
 
 func (s *server) getSection(ctx context.Context, _ *mcp.CallToolRequest, in sectionIn) (*mcp.CallToolResult, any, error) {
-	sc, err := s.st.Section(ctx, in.SectionID)
+	b, err := s.activeBook(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	sc, err := s.st.Section(ctx, b.ID, in.SectionID)
 	if errors.Is(err, store.ErrOutOfScope) {
 		return nil, nil, fmt.Errorf("section %s is in a unit the user hasn't read yet; don't use it", in.SectionID)
 	} else if err != nil {
@@ -158,7 +174,11 @@ func (s *server) getSection(ctx context.Context, _ *mcp.CallToolRequest, in sect
 }
 
 func (s *server) getFigure(ctx context.Context, _ *mcp.CallToolRequest, in figureIn) (*mcp.CallToolResult, any, error) {
-	f, err := s.st.FigureInScope(ctx, filepath.Base(in.Name))
+	b, err := s.activeBook(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	f, err := s.st.FigureInScope(ctx, b.ID, filepath.Base(in.Name))
 	if errors.Is(err, store.ErrOutOfScope) {
 		return nil, nil, fmt.Errorf("figure %s is in a unit the user hasn't read yet", in.Name)
 	} else if err != nil {
@@ -179,7 +199,11 @@ func (s *server) getFigure(ctx context.Context, _ *mcp.CallToolRequest, in figur
 }
 
 func (s *server) searchBook(ctx context.Context, _ *mcp.CallToolRequest, in searchIn) (*mcp.CallToolResult, searchOut, error) {
-	hits, err := s.st.Search(ctx, in.Query, in.Limit)
+	b, err := s.activeBook(ctx)
+	if err != nil {
+		return nil, searchOut{}, err
+	}
+	hits, err := s.st.Search(ctx, b.ID, in.Query, in.Limit)
 	if err != nil {
 		return nil, searchOut{}, err
 	}

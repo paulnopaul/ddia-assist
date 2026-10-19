@@ -78,7 +78,7 @@ func TestImportAndPlan_UI1_UI2(t *testing.T) {
 func TestMarkRead_UI3(t *testing.T) {
 	h, st := newServer(t)
 	upload(t, h, testbook.HTMLBook())
-	units, _ := st.Units(context.Background())
+	units, _ := st.Units(context.Background(), active(t, st))
 	rec := post(t, h, "/units/"+itoa(units[0].ID)+"/status", url.Values{"status": {"read"}})
 	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "ddia-study") {
 		t.Fatalf("mark read: %d %s", rec.Code, rec.Header().Get("Location"))
@@ -95,7 +95,7 @@ func TestMarkRead_UI3(t *testing.T) {
 func TestUnitPage_UI7_NoBookText(t *testing.T) {
 	h, st := newServer(t)
 	upload(t, h, testbook.HTMLBook())
-	units, _ := st.Units(context.Background())
+	units, _ := st.Units(context.Background(), active(t, st))
 	for _, u := range units {
 		body := do(t, h, httptest.NewRequest(http.MethodGet, "/units/"+itoa(u.ID), nil)).Body.String()
 		if strings.Contains(body, "lorem") {
@@ -149,7 +149,7 @@ func TestUnitPage_UI4_SessionsAndOverride_SES11(t *testing.T) {
 
 func mustUnits(t *testing.T, st *store.Store) []store.Unit {
 	t.Helper()
-	us, err := st.Units(context.Background())
+	us, err := st.Units(context.Background(), active(t, st))
 	if err != nil || len(us) == 0 {
 		t.Fatalf("units: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestMarkUnread_UI3(t *testing.T) {
 
 func mustUnitsM1(t *testing.T, st *store.Store) []store.Unit {
 	t.Helper()
-	us, err := st.Units(context.Background())
+	us, err := st.Units(context.Background(), active(t, st))
 	if err != nil || len(us) == 0 {
 		t.Fatalf("units: %v", err)
 	}
@@ -228,5 +228,65 @@ func TestUnitNumbers_UI8(t *testing.T) {
 	body := do(t, h, httptest.NewRequest(http.MethodGet, "/units/"+itoa(u.ID), nil)).Body.String()
 	if !strings.Contains(body, "#"+itoa(u.ID)+"</span>") || !strings.Contains(body, "<code>"+itoa(u.ID)+"</code> as the unit") {
 		t.Error("unit page should show the unit number and how to pass it to ddia-study")
+	}
+}
+
+// active returns the active book's ID.
+func active(t *testing.T, st *store.Store) int64 {
+	t.Helper()
+	b, err := st.ActiveBook(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b.ID
+}
+
+func TestBooks_UI9_UI10(t *testing.T) {
+	h, st := newServer(t)
+	upload(t, h, testbook.HTMLBook())
+	ctx := context.Background()
+	first := active(t, st)
+	if rec := upload(t, h, testbook.HTMLBookTitled("Second Book")); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Proposed units") {
+		t.Fatalf("ING-13: second import: %d", rec.Code)
+	}
+	second := active(t, st)
+	if second == first {
+		t.Fatal("ING-13: the new book should be active")
+	}
+	body := do(t, h, httptest.NewRequest(http.MethodGet, "/import", nil)).Body.String()
+	for _, want := range []string{"Test Book", "Second Book", "active</span>", "Make active", `action="/books/active"`, "/books/" + itoa(first) + "/delete"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("books page missing %q", want)
+		}
+	}
+	// UI-10: plan shows the active book only; the header switches.
+	if body := do(t, h, httptest.NewRequest(http.MethodGet, "/plan", nil)).Body.String(); !strings.Contains(body, "· Second Book") {
+		t.Error("plan should name the active book")
+	}
+	req := httptest.NewRequest(http.MethodPost, "/books/active", strings.NewReader(url.Values{"book": {itoa(first)}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", "http://example.com/plan")
+	req.Host = "example.com"
+	if rec := do(t, h, req); rec.Header().Get("Location") != "/plan" || active(t, st) != first {
+		t.Fatalf("switch: %s, active %d", rec.Header().Get("Location"), active(t, st))
+	}
+	firstUnits, _ := st.Units(ctx, first)
+	st.SetStatus(ctx, firstUnits[0].ID, store.StatusRead)
+	if body := do(t, h, httptest.NewRequest(http.MethodGet, "/", nil)).Body.String(); !strings.Contains(body, "<h1>Test Book</h1>") || !strings.Contains(body, "1/") {
+		t.Error("dashboard should cover the active book")
+	}
+	// A unit page of the other book says so.
+	secondUnits, _ := st.Units(ctx, second)
+	if body := do(t, h, httptest.NewRequest(http.MethodGet, "/units/"+itoa(secondUnits[0].ID), nil)).Body.String(); !strings.Contains(body, "Second Book (not the active book)") {
+		t.Error("unit page should name its book")
+	}
+	if rec := post(t, h, "/books/"+itoa(first)+"/delete", nil); strings.Contains(rec.Header().Get("Location"), "error") {
+		t.Fatalf("delete: %s", rec.Header().Get("Location"))
+	}
+	if active(t, st) != second {
+		t.Error("DAT-7: the remaining book should become active")
+	}
+	if rec := post(t, h, "/books/active", url.Values{"book": {"999"}}); !strings.Contains(rec.Header().Get("Location"), "error") {
+		t.Error("switching to an unknown book should fail")
 	}
 }

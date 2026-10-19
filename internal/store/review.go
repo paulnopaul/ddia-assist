@@ -25,8 +25,9 @@ const reviewCols = `ri.concept_id, c.name, c.definition, c.section_ref, u.title,
 	COALESCE((SELECT g.description FROM gap g WHERE g.concept_id = c.id ORDER BY g.id DESC LIMIT 1), ''),
 	COALESCE((SELECT a.prompt FROM answer a WHERE a.concept_id = c.id AND a.step = 'review' ORDER BY a.id DESC LIMIT 1), '')`
 
+// reviewFrom covers one book's queue (REV-9) and takes the book ID.
 const reviewFrom = ` FROM review_item ri JOIN concept c ON c.id = ri.concept_id JOIN unit u ON u.id = c.unit_id
-	JOIN progress p ON p.unit_id = u.id WHERE p.status IN ('read', 'studied') AND ri.mastered = 0`
+	JOIN progress p ON p.unit_id = u.id WHERE u.book_id = ? AND p.status IN ('read', 'studied') AND ri.mastered = 0`
 
 func scanReviews(rows *sql.Rows) ([]DueReview, error) {
 	defer rows.Close()
@@ -41,31 +42,31 @@ func scanReviews(rows *sql.Rows) ([]DueReview, error) {
 	return out, rows.Err()
 }
 
-// DueReviews returns due items in read scope, oldest due first (REV-5, REV-6).
-func (s *Store) DueReviews(ctx context.Context, limit int) ([]DueReview, error) {
+// DueReviews returns a book's due items in read scope, oldest due first (REV-5, REV-6).
+func (s *Store) DueReviews(ctx context.Context, bookID int64, limit int) ([]DueReview, error) {
 	if limit <= 0 {
 		limit = 5
 	}
-	rows, err := s.DB.QueryContext(ctx, `SELECT `+reviewCols+reviewFrom+` AND ri.due_at <= datetime('now') ORDER BY ri.due_at LIMIT ?`, limit)
+	rows, err := s.DB.QueryContext(ctx, `SELECT `+reviewCols+reviewFrom+` AND ri.due_at <= datetime('now') ORDER BY ri.due_at LIMIT ?`, bookID, limit)
 	if err != nil {
 		return nil, err
 	}
 	return scanReviews(rows)
 }
 
-// ReviewQueue returns every scheduled (not mastered) item in read scope.
-func (s *Store) ReviewQueue(ctx context.Context) ([]DueReview, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT `+reviewCols+reviewFrom+` ORDER BY ri.due_at`)
+// ReviewQueue returns a book's scheduled (not mastered) items in read scope.
+func (s *Store) ReviewQueue(ctx context.Context, bookID int64) ([]DueReview, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT `+reviewCols+reviewFrom+` ORDER BY ri.due_at`, bookID)
 	if err != nil {
 		return nil, err
 	}
 	return scanReviews(rows)
 }
 
-// DueCount is the number of due review items in read scope.
-func (s *Store) DueCount(ctx context.Context) (int, error) {
+// DueCount is the number of a book's due review items in read scope.
+func (s *Store) DueCount(ctx context.Context, bookID int64) (int, error) {
 	var n int
-	err := s.DB.QueryRowContext(ctx, `SELECT count(*)`+reviewFrom+` AND ri.due_at <= datetime('now')`).Scan(&n)
+	err := s.DB.QueryRowContext(ctx, `SELECT count(*)`+reviewFrom+` AND ri.due_at <= datetime('now')`, bookID).Scan(&n)
 	return n, err
 }
 
@@ -164,11 +165,11 @@ type ChapterProgress struct {
 	Units, Read, Studied int
 }
 
-// ChapterProgress counts units per chapter by status (UI-6).
-func (s *Store) ChapterProgress(ctx context.Context) ([]ChapterProgress, error) {
+// ChapterProgress counts a book's units per chapter by status (UI-6).
+func (s *Store) ChapterProgress(ctx context.Context, bookID int64) ([]ChapterProgress, error) {
 	rows, err := s.DB.QueryContext(ctx, `SELECT u.chapter, count(*),
 		SUM(p.status IN ('read', 'studied')), SUM(p.status = 'studied')
-		FROM unit u JOIN progress p ON p.unit_id = u.id GROUP BY u.chapter ORDER BY u.chapter`)
+		FROM unit u JOIN progress p ON p.unit_id = u.id WHERE u.book_id = ? GROUP BY u.chapter ORDER BY u.chapter`, bookID)
 	if err != nil {
 		return nil, err
 	}

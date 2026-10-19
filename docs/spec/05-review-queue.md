@@ -27,3 +27,5 @@ stateDiagram-v2
   and 3 marks it mastered.
 - **REV-8** The `ddia-review` prompt gives the same English feedback after each answer as a study
   session (SES-14, SES-16), under the same chat-only rule (SES-15).
+- **REV-9** The review queue is per book: `get_due_reviews`, the due count and the concepts page cover the
+  active book only (MCP-9). Switching books, or `ddia-review` with a `book` arg (MCP-10), reviews another book's queue.

@@ -54,43 +54,64 @@ func (s *server) addStudy(srv *mcp.Server) {
 		Name:        "ddia-study",
 		Title:       "Study a unit",
 		Description: "Explain, probe, apply and verdict for the next read unit, or the one you name.",
-		Arguments: []*mcp.PromptArgument{{Name: "unit", Description: "Optional. The unit's number from the web UI (#12) or a few words of its title. " +
-			"Leave empty to study the next read, unstudied unit."}},
+		Arguments: []*mcp.PromptArgument{
+			{Name: "unit", Description: "Optional. The unit's number from the web UI (#12) or a few words of its title. " +
+				"Leave empty to study the next read, unstudied unit."},
+			{Name: "book", Description: bookArg},
+		},
 	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+		book, err := s.resolveBook(ctx, req.Params.Arguments["book"])
+		if err != nil {
+			return nil, err
+		}
 		arg := req.Params.Arguments["unit"]
 		if arg == "" {
 			arg = req.Params.Arguments["unit_id"] // older clients (MCP-6)
 		}
-		unit, err := s.resolveUnit(ctx, arg)
+		unit, book, err := s.resolveUnit(ctx, book, arg)
 		if err != nil {
 			return nil, err
 		}
+		text := strings.NewReplacer("{{UNIT}}", unit, "{{BOOK}}", bookLine(book)).Replace(promptText("ddia-study"))
 		return &mcp.GetPromptResult{
-			Description: "DDIA study session",
-			Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: strings.ReplaceAll(promptText("ddia-study"), "{{UNIT}}", unit)}}},
+			Description: "Study session",
+			Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: text}}},
 		}, nil
 	})
 }
 
 // resolveUnit turns the ddia-study argument into the prompt's unit line (MCP-6). It accepts
-// a unit number, optionally prefixed with '#', or words from a unit title.
-func (s *server) resolveUnit(ctx context.Context, arg string) (string, error) {
+// a unit number, optionally prefixed with '#', or words from a unit title in book. A unit
+// number may belong to any book, which then becomes the active book and is returned.
+func (s *server) resolveUnit(ctx context.Context, book *store.Book, arg string) (string, *store.Book, error) {
 	arg = strings.TrimSpace(arg)
 	if arg == "" {
-		return "the `next_to_study` unit from `get_status`", nil
-	}
-	units, err := s.st.Units(ctx)
-	if err != nil {
-		return "", err
+		return "the `next_to_study` unit from `get_status`", book, nil
 	}
 	describe := func(u store.Unit) string { return fmt.Sprintf("unit %d (%q, chapter %d)", u.ID, u.Title, u.Chapter) }
 	if id, err := strconv.ParseInt(strings.TrimPrefix(arg, "#"), 10, 64); err == nil {
-		for _, u := range units {
-			if u.ID == id {
-				return describe(u), nil
+		u, err := s.st.Unit(ctx, id, false)
+		if errors.Is(err, store.ErrNotFound) {
+			return "", nil, fmt.Errorf("there is no unit #%d; unit numbers are shown on the reading plan at /plan", id)
+		} else if err != nil {
+			return "", nil, err
+		}
+		if book == nil || u.BookID != book.ID {
+			if err := s.st.SetActiveBook(ctx, u.BookID); err != nil {
+				return "", nil, err
+			}
+			if book, err = s.st.Book(ctx, u.BookID); err != nil {
+				return "", nil, err
 			}
 		}
-		return "", fmt.Errorf("there is no unit #%d; unit numbers are shown on the reading plan at /plan", id)
+		return describe(*u), book, nil
+	}
+	if book == nil {
+		return "", nil, errors.New("no book imported yet; import an EPUB at http://localhost:8080/import")
+	}
+	units, err := s.st.Units(ctx, book.ID)
+	if err != nil {
+		return "", nil, err
 	}
 	var matches []store.Unit
 	for _, u := range units {
@@ -100,16 +121,16 @@ func (s *server) resolveUnit(ctx context.Context, arg string) (string, error) {
 	}
 	switch len(matches) {
 	case 0:
-		return "", fmt.Errorf("no unit title contains %q; use a unit number from the reading plan at /plan, or leave the argument empty", arg)
+		return "", nil, fmt.Errorf("no unit title in %q contains %q; use a unit number from the reading plan at /plan, or leave the argument empty", book.Title, arg)
 	case 1:
-		return describe(matches[0]), nil
+		return describe(matches[0]), book, nil
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "the one I mean by %q. Several units match, so ask me which one before anything else:", arg)
 	for _, u := range matches {
 		b.WriteString("\n   - " + describe(u))
 	}
-	return b.String(), nil
+	return b.String(), book, nil
 }
 
 func toolErr(err error) error {
@@ -134,7 +155,11 @@ func (s *server) getWeakConcepts(ctx context.Context, _ *mcp.CallToolRequest, in
 	if in.Limit <= 0 {
 		in.Limit = 10
 	}
-	cs, err := s.st.WeakConcepts(ctx, in.Limit)
+	b, err := s.activeBook(ctx)
+	if err != nil {
+		return nil, conceptsOut{}, err
+	}
+	cs, err := s.st.WeakConcepts(ctx, b.ID, in.Limit)
 	if err != nil {
 		return nil, conceptsOut{}, err
 	}
@@ -150,7 +175,9 @@ func (s *server) recordAssessment(ctx context.Context, _ *mcp.CallToolRequest, i
 		return nil, recordOut{}, toolErr(err)
 	}
 	msg := fmt.Sprintf("Session %d recorded; unit %d is now studied.", id, in.UnitID)
-	if due, err := s.dueCount(ctx); err == nil && due > 0 {
+	if u, err := s.st.Unit(ctx, in.UnitID, false); err != nil {
+		return nil, recordOut{}, err
+	} else if due, err := s.st.DueCount(ctx, u.BookID); err == nil && due > 0 {
 		msg += fmt.Sprintf(" %d concept reviews are due: suggest /ddia-review.", due)
 	}
 	return nil, recordOut{SessionID: id, AlreadyStored: existed, Message: msg}, nil

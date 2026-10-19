@@ -6,6 +6,7 @@ flowchart LR
     M1 --> M2["M2 Read path<br/>MCP read tools, scope,<br/>Docker, Desktop wiring"]
     M2 --> M3["M3 Study loop<br/>save_concepts, record_assessment,<br/>ddia-study prompt, UI-4"]
     M3 --> M4["M4 Review queue<br/>REV, ddia-review, UI-5/6"]
+    M4 --> M5["M5 Several books<br/>ING-13, DAT-6/7, MCP-9/10,<br/>REV-9, UI-9/10"]
 ```
 
 Each milestone ends with something usable. After M2 you can already study with Claude using the book's

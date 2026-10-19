@@ -51,7 +51,7 @@ func TestReviewQueue_REV1_to_REV5(t *testing.T) {
 	if json.Unmarshal([]byte(out), &r); !r.Mastered {
 		t.Fatalf("second 3 should master: %s", out)
 	}
-	if n, _ := e.st.DueCount(ctx); n != 2 {
+	if n, _ := e.st.DueCount(ctx, active(t, e.st)); n != 2 {
 		t.Fatalf("due after mastering = %d, want 2", n)
 	}
 	// A low review score resets per REV-2.

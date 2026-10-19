@@ -1,7 +1,6 @@
 package web
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/paulnopaul/ddia-assist/internal/store"
@@ -10,25 +9,26 @@ import (
 // dashboard shows progress per chapter, due reviews and the weakest concepts (UI-6).
 func (s *server) dashboard(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	book, err := s.st.CurrentBook(ctx)
-	if errors.Is(err, store.ErrNotFound) {
+	book, err := s.activeBook(r)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if book == nil {
 		http.Redirect(w, r, "/import", http.StatusSeeOther)
 		return
-	} else if err != nil {
-		s.fail(w, err)
-		return
 	}
-	chapters, err := s.st.ChapterProgress(ctx)
+	chapters, err := s.st.ChapterProgress(ctx, book.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	due, err := s.st.DueCount(ctx)
+	due, err := s.st.DueCount(ctx, book.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	weak, err := s.st.WeakConcepts(ctx, 5)
+	weak, err := s.st.WeakConcepts(ctx, book.ID, 5)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -40,10 +40,10 @@ func (s *server) dashboard(w http.ResponseWriter, r *http.Request) {
 		studied += c.Studied
 	}
 	var nextRead, nextStudy *store.Unit
-	if u, err := s.st.NextUnit(ctx, store.StatusRead); err == nil {
+	if u, err := s.st.NextUnit(ctx, book.ID, store.StatusRead); err == nil {
 		nextStudy = u
 	}
-	if u, err := s.st.NextUnit(ctx, store.StatusNotStarted, store.StatusReading); err == nil {
+	if u, err := s.st.NextUnit(ctx, book.ID, store.StatusNotStarted, store.StatusReading); err == nil {
 		nextRead = u
 	}
 	s.render(w, r, "dashboard", "Dashboard", map[string]any{
@@ -57,9 +57,13 @@ type conceptRow struct {
 	Review *store.ReviewState
 }
 
-// concepts lists every concept in read scope with score and review state (UI-5).
+// concepts lists the active book's concepts in read scope with score and review state (UI-5, UI-10).
 func (s *server) concepts(w http.ResponseWriter, r *http.Request) {
-	cs, err := s.st.ConceptsInScope(r.Context())
+	var cs []store.Concept
+	b, err := s.activeBook(r)
+	if err == nil && b != nil {
+		cs, err = s.st.ConceptsInScope(r.Context(), b.ID)
+	}
 	if err != nil {
 		s.fail(w, err)
 		return

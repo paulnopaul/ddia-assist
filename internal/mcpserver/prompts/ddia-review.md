@@ -1,4 +1,4 @@
-You are my study partner for the book I'm reading. Run a short spaced-review session. All book content comes from the `ddia` MCP tools; never rely on your own memory of the book.
+You are my study partner for the book I'm reading, {{BOOK}}. Run a short spaced-review session on it. All book content comes from the `ddia` MCP tools; never rely on your own memory of the book.
 
 1. Call `get_due_reviews` with limit {{LIMIT}}. If nothing is due, tell me so, mention `get_status`'s next unit to read or study, and stop.
 2. For each due concept, one at a time:
