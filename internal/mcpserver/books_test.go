@@ -90,16 +90,12 @@ func TestPrompt_MCP10_BookArgSwitchesActiveBook(t *testing.T) {
 	if _, err := e.prompt("ddia-study", map[string]string{"book": "second", "unit": firstUnits[0].Title}); err != nil {
 		t.Fatalf("title in book 2: %v", err)
 	}
-	// A book arg that matches no book, or several, becomes a note listing the books:
-	// Claude Desktop shows prompt errors only as "failed to attach prompt".
-	for name, arg := range map[string]string{"ddia-study": "book", "ddia-review": "nope"} {
-		txt, err := e.prompt(name, map[string]string{"book": arg})
-		if err != nil || !strings.HasPrefix(txt, "**Before anything else:**") || !strings.Contains(txt, `"Second Book"`) || !strings.Contains(txt, "start the prompt again") {
-			t.Errorf("%s book=%q: err = %v, prompt = %.300s", name, arg, err, txt)
-		}
+	// A book arg never fails: the closest title wins, a typo included, and a tie keeps the active book.
+	if txt, err := e.prompt("ddia-study", map[string]string{"book": "secnd bok"}); err != nil || !strings.Contains(txt, `"Second Book"`) || active(t, e.st) != second {
+		t.Errorf("typo: err = %v, prompt = %.120s", err, txt)
 	}
-	if active(t, e.st) != second {
-		t.Error("a book arg that matches nothing must not change the active book")
+	if txt, err := e.prompt("ddia-review", map[string]string{"book": "book"}); err != nil || strings.Contains(txt, "Before anything else") || active(t, e.st) != second {
+		t.Errorf("tie should keep the active book: err = %v, active = %d", err, active(t, e.st))
 	}
 }
 
@@ -165,20 +161,25 @@ func TestPrompt_MCP10_BookArgMatchesInitials(t *testing.T) {
 	}
 }
 
-func TestTitleMatches_MCP10(t *testing.T) {
+func TestTitleDistance_MCP10(t *testing.T) {
+	const ddia = "Designing Data-Intensive Applications"
 	for _, c := range []struct {
 		title, arg string
-		want       bool
+		want       int
 	}{
-		{"Designing Data-Intensive Applications", "ddia", true},
-		{"Designing Data-Intensive Applications", "d d i a", true},
-		{"Designing Data-Intensive Applications", "Intensive App", true},
-		{"Designing Data-Intensive Applications", "dda", false},
-		{"Database Internals", "di", true},
-		{"Database Internals", "ddia", false},
+		{ddia, "ddia", 0},
+		{ddia, "DDIA", 0},
+		{ddia, "data-intensive", 0},
+		{ddia, "Intensive Applications", 0},
+		{ddia, "dda", 1},
+		{ddia, "desinging", 2},
+		{"Database Internals", "di", 0},
 	} {
-		if got := titleMatches(c.title, c.arg); got != c.want {
-			t.Errorf("titleMatches(%q, %q) = %v", c.title, c.arg, got)
+		if got := titleDistance(c.title, c.arg); got != c.want {
+			t.Errorf("titleDistance(%q, %q) = %d, want %d", c.title, c.arg, got, c.want)
 		}
+	}
+	if titleDistance(ddia, "ddia") >= titleDistance("Database Internals", "ddia") {
+		t.Error("ddia should be closer to DDIA than to Database Internals")
 	}
 }
