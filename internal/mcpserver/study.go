@@ -60,25 +60,42 @@ func (s *server) addStudy(srv *mcp.Server) {
 			{Name: "book", Description: bookArg},
 		},
 	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		book, err := s.resolveBook(ctx, req.Params.Arguments["book"])
+		book, note, err := s.resolveBook(ctx, req.Params.Arguments["book"])
 		if err != nil {
 			return nil, err
+		}
+		if note != "" {
+			return studyPrompt(withNote(note, promptText("ddia-study")), "the unit I name when I start again", book), nil
 		}
 		arg := req.Params.Arguments["unit"]
 		if arg == "" {
 			arg = req.Params.Arguments["unit_id"] // older clients (MCP-6)
 		}
 		unit, book, err := s.resolveUnit(ctx, book, arg)
-		if err != nil {
+		var bad *badArgError
+		if errors.As(err, &bad) {
+			// Claude Desktop hides prompt errors, so Claude says what went wrong instead (MCP-6).
+			return studyPrompt(withNote(bad.msg+" Tell me that and ask which unit I meant, then go on with that unit.", promptText("ddia-study")),
+				"the unit I tell you when you ask", book), nil
+		} else if err != nil {
 			return nil, err
 		}
-		text := strings.NewReplacer("{{UNIT}}", unit, "{{BOOK}}", bookLine(book)).Replace(promptText("ddia-study"))
-		return &mcp.GetPromptResult{
-			Description: "Study session",
-			Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: text}}},
-		}, nil
+		return studyPrompt(promptText("ddia-study"), unit, book), nil
 	})
 }
+
+func studyPrompt(text, unit string, book *store.Book) *mcp.GetPromptResult {
+	text = strings.NewReplacer("{{UNIT}}", unit, "{{BOOK}}", bookLine(book)).Replace(text)
+	return &mcp.GetPromptResult{
+		Description: "Study session",
+		Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: text}}},
+	}
+}
+
+// badArgError is a `unit` argument that names no unit (MCP-6).
+type badArgError struct{ msg string }
+
+func (e *badArgError) Error() string { return e.msg }
 
 // resolveUnit turns the ddia-study argument into the prompt's unit line (MCP-6). It accepts
 // a unit number, optionally prefixed with '#', or words from a unit title in book. A unit
@@ -92,7 +109,7 @@ func (s *server) resolveUnit(ctx context.Context, book *store.Book, arg string) 
 	if id, err := strconv.ParseInt(strings.TrimPrefix(arg, "#"), 10, 64); err == nil {
 		u, err := s.st.Unit(ctx, id, false)
 		if errors.Is(err, store.ErrNotFound) {
-			return "", nil, fmt.Errorf("there is no unit #%d; unit numbers are shown on the reading plan at /plan", id)
+			return "", book, &badArgError{fmt.Sprintf("I asked for unit #%d, but there is no such unit; unit numbers are shown on the reading plan at http://localhost:8080/plan.", id)}
 		} else if err != nil {
 			return "", nil, err
 		}
@@ -107,7 +124,7 @@ func (s *server) resolveUnit(ctx context.Context, book *store.Book, arg string) 
 		return describe(*u), book, nil
 	}
 	if book == nil {
-		return "", nil, errors.New("no book imported yet; import an EPUB at http://localhost:8080/import")
+		return "", nil, &badArgError{"No book is imported yet; tell me to import an EPUB at http://localhost:8080/import."}
 	}
 	units, err := s.st.Units(ctx, book.ID)
 	if err != nil {
@@ -121,7 +138,7 @@ func (s *server) resolveUnit(ctx context.Context, book *store.Book, arg string) 
 	}
 	switch len(matches) {
 	case 0:
-		return "", nil, fmt.Errorf("no unit title in %q contains %q; use a unit number from the reading plan at /plan, or leave the argument empty", book.Title, arg)
+		return "", book, &badArgError{fmt.Sprintf("I asked for the unit %q, but no unit title in %q contains it; unit numbers are shown on the reading plan at http://localhost:8080/plan.", arg, book.Title)}
 	case 1:
 		return describe(matches[0]), book, nil
 	}

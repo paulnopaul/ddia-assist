@@ -90,14 +90,12 @@ func TestPrompt_MCP10_BookArgSwitchesActiveBook(t *testing.T) {
 	if _, err := e.prompt("ddia-study", map[string]string{"book": "second", "unit": firstUnits[0].Title}); err != nil {
 		t.Fatalf("title in book 2: %v", err)
 	}
-	if _, err := e.prompt("ddia-study", map[string]string{"book": "book"}); err == nil || !strings.Contains(err.Error(), "several") {
-		t.Errorf("ambiguous book: err = %v", err)
+	// A book arg never fails: the closest title wins, a typo included, and a tie keeps the active book.
+	if txt, err := e.prompt("ddia-study", map[string]string{"book": "secnd bok"}); err != nil || !strings.Contains(txt, `"Second Book"`) || active(t, e.st) != second {
+		t.Errorf("typo: err = %v, prompt = %.120s", err, txt)
 	}
-	if _, err := e.prompt("ddia-review", map[string]string{"book": "nope"}); err == nil || !strings.Contains(err.Error(), `"Second Book"`) {
-		t.Errorf("unknown book should list the books: err = %v", err)
-	}
-	if active(t, e.st) != second {
-		t.Error("a failed book arg must not change the active book")
+	if txt, err := e.prompt("ddia-review", map[string]string{"book": "book"}); err != nil || strings.Contains(txt, "Before anything else") || active(t, e.st) != second {
+		t.Errorf("tie should keep the active book: err = %v, active = %d", err, active(t, e.st))
 	}
 }
 
@@ -144,4 +142,44 @@ func mustUnits(t *testing.T, st *store.Store, bookID int64) []store.Unit {
 		t.Fatalf("units: %v", err)
 	}
 	return us
+}
+
+func TestPrompt_MCP10_BookArgMatchesInitials(t *testing.T) {
+	e := setup(t, true)
+	ctx := context.Background()
+	res, err := ingest.Import(ctx, e.st, t.TempDir(), testbook.HTMLBookTitled("Designing Data-Intensive Applications"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.st.SetActiveBook(ctx, res.BookID-1)
+	for _, arg := range []string{"ddia", "DDIA", "data-intensive"} {
+		txt, err := e.prompt("ddia-review", map[string]string{"limit": "3", "book": arg})
+		if err != nil || strings.Contains(txt, "Before anything else") || active(t, e.st) != res.BookID {
+			t.Errorf("book=%q: err = %v, prompt = %.200s", arg, err, txt)
+		}
+		e.st.SetActiveBook(ctx, res.BookID-1)
+	}
+}
+
+func TestTitleDistance_MCP10(t *testing.T) {
+	const ddia = "Designing Data-Intensive Applications"
+	for _, c := range []struct {
+		title, arg string
+		want       int
+	}{
+		{ddia, "ddia", 0},
+		{ddia, "DDIA", 0},
+		{ddia, "data-intensive", 0},
+		{ddia, "Intensive Applications", 0},
+		{ddia, "dda", 1},
+		{ddia, "desinging", 2},
+		{"Database Internals", "di", 0},
+	} {
+		if got := titleDistance(c.title, c.arg); got != c.want {
+			t.Errorf("titleDistance(%q, %q) = %d, want %d", c.title, c.arg, got, c.want)
+		}
+	}
+	if titleDistance(ddia, "ddia") >= titleDistance("Database Internals", "ddia") {
+		t.Error("ddia should be closer to DDIA than to Database Internals")
+	}
 }

@@ -68,13 +68,17 @@ flowchart LR
 - **MCP-6** `ddia-study` (optional arg `unit`) expands to the study-session instructions in [04](04-study-session.md).
   `unit` MAY be the unit's number as the web UI shows it (`12` or `#12`) or a few words of its title, matched
   case-insensitively. Empty means the next read, unstudied unit. If several titles match, the prompt names them
-  and tells Claude to ask which one first. An unknown number or title is an error that says where to find unit
-  numbers. The older arg name `unit_id` is still accepted.
+  and tells Claude to ask which one first. An unknown number or title is not an error, because Claude Desktop
+  shows prompt errors only as "failed to attach prompt": the prompt starts with a note telling Claude to say the
+  unit wasn't found, point to the unit numbers on the reading plan and ask which unit was meant. The older arg name `unit_id` is still accepted.
   A unit given by number may belong to any book, and that book becomes the active book.
 - **MCP-7** `ddia-review` (optional arg `limit`, default 5) expands to the review instructions in [05](05-review-queue.md).
-- **MCP-10** `ddia-study` and `ddia-review` also take an optional `book` arg: a few words of a book's title, matched
-  case-insensitively. A single match becomes the active book before anything else in the prompt is resolved, so a
-  `unit` given by title is looked up in that book. No match, or several, is an error that lists the books.
-  Empty keeps the active book. The prompt text names the book the session is about.
+- **MCP-10** `ddia-study` and `ddia-review` also take an optional `book` arg: part of a book's title or its initials
+  (`ddia` for *Designing Data-Intensive Applications*). The book whose title is closest wins: the smallest Levenshtein
+  distance, ignoring case and punctuation, from the arg to the title's initials or to any run of consecutive words in
+  it; a tie keeps the active book, then the oldest. So the arg never fails (see MCP-6 for why that matters), and a typo
+  still finds the book. The chosen book becomes the active book before anything else in the prompt is resolved, so a
+  `unit` given by title is looked up in that book. Empty keeps the active book. The prompt text names the book the
+  session is about.
 - **MCP-8** Prompt texts live in `internal/mcpserver/prompts/*.md` and are embedded at build time. They are
   part of the spec: changing one is a spec change.
