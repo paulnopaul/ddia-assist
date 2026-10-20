@@ -38,7 +38,7 @@ func (s *server) addReview(srv *mcp.Server) {
 			{Name: "book", Description: bookArg},
 		},
 	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		book, err := s.resolveBook(ctx, req.Params.Arguments["book"])
+		book, note, err := s.resolveBook(ctx, req.Params.Arguments["book"])
 		if err != nil {
 			return nil, err
 		}
@@ -46,7 +46,7 @@ func (s *server) addReview(srv *mcp.Server) {
 		if n, err := strconv.Atoi(strings.TrimSpace(req.Params.Arguments["limit"])); err == nil && n > 0 {
 			limit = n
 		}
-		text := strings.NewReplacer("{{LIMIT}}", strconv.Itoa(limit), "{{BOOK}}", bookLine(book)).Replace(promptText("ddia-review"))
+		text := strings.NewReplacer("{{LIMIT}}", strconv.Itoa(limit), "{{BOOK}}", bookLine(book)).Replace(withNote(note, promptText("ddia-review")))
 		return &mcp.GetPromptResult{
 			Description: "Review session",
 			Messages:    []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: text}}},

@@ -90,14 +90,16 @@ func TestPrompt_MCP10_BookArgSwitchesActiveBook(t *testing.T) {
 	if _, err := e.prompt("ddia-study", map[string]string{"book": "second", "unit": firstUnits[0].Title}); err != nil {
 		t.Fatalf("title in book 2: %v", err)
 	}
-	if _, err := e.prompt("ddia-study", map[string]string{"book": "book"}); err == nil || !strings.Contains(err.Error(), "several") {
-		t.Errorf("ambiguous book: err = %v", err)
-	}
-	if _, err := e.prompt("ddia-review", map[string]string{"book": "nope"}); err == nil || !strings.Contains(err.Error(), `"Second Book"`) {
-		t.Errorf("unknown book should list the books: err = %v", err)
+	// A book arg that matches no book, or several, becomes a note listing the books:
+	// Claude Desktop shows prompt errors only as "failed to attach prompt".
+	for name, arg := range map[string]string{"ddia-study": "book", "ddia-review": "nope"} {
+		txt, err := e.prompt(name, map[string]string{"book": arg})
+		if err != nil || !strings.HasPrefix(txt, "**Before anything else:**") || !strings.Contains(txt, `"Second Book"`) || !strings.Contains(txt, "start the prompt again") {
+			t.Errorf("%s book=%q: err = %v, prompt = %.300s", name, arg, err, txt)
+		}
 	}
 	if active(t, e.st) != second {
-		t.Error("a failed book arg must not change the active book")
+		t.Error("a book arg that matches nothing must not change the active book")
 	}
 }
 
@@ -144,4 +146,39 @@ func mustUnits(t *testing.T, st *store.Store, bookID int64) []store.Unit {
 		t.Fatalf("units: %v", err)
 	}
 	return us
+}
+
+func TestPrompt_MCP10_BookArgMatchesInitials(t *testing.T) {
+	e := setup(t, true)
+	ctx := context.Background()
+	res, err := ingest.Import(ctx, e.st, t.TempDir(), testbook.HTMLBookTitled("Designing Data-Intensive Applications"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.st.SetActiveBook(ctx, res.BookID-1)
+	for _, arg := range []string{"ddia", "DDIA", "data-intensive"} {
+		txt, err := e.prompt("ddia-review", map[string]string{"limit": "3", "book": arg})
+		if err != nil || strings.Contains(txt, "Before anything else") || active(t, e.st) != res.BookID {
+			t.Errorf("book=%q: err = %v, prompt = %.200s", arg, err, txt)
+		}
+		e.st.SetActiveBook(ctx, res.BookID-1)
+	}
+}
+
+func TestTitleMatches_MCP10(t *testing.T) {
+	for _, c := range []struct {
+		title, arg string
+		want       bool
+	}{
+		{"Designing Data-Intensive Applications", "ddia", true},
+		{"Designing Data-Intensive Applications", "d d i a", true},
+		{"Designing Data-Intensive Applications", "Intensive App", true},
+		{"Designing Data-Intensive Applications", "dda", false},
+		{"Database Internals", "di", true},
+		{"Database Internals", "ddia", false},
+	} {
+		if got := titleMatches(c.title, c.arg); got != c.want {
+			t.Errorf("titleMatches(%q, %q) = %v", c.title, c.arg, got)
+		}
+	}
 }

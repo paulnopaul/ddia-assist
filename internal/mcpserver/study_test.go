@@ -151,11 +151,12 @@ func TestPrompt_MCP6_DDIAStudy(t *testing.T) {
 			t.Errorf("prompt missing %q", want)
 		}
 	}
-	if _, err := prompt(map[string]string{"unit": "9999"}); err == nil || !strings.Contains(err.Error(), "/plan") {
-		t.Errorf("unknown number: err = %v", err)
-	}
-	if _, err := prompt(map[string]string{"unit": "no such title"}); err == nil {
-		t.Error("unknown title should fail")
+	// Claude Desktop hides prompt errors, so a bad unit becomes a note asking which unit was meant.
+	for _, arg := range []string{"9999", "no such title"} {
+		txt, err := prompt(map[string]string{"unit": arg})
+		if err != nil || !strings.HasPrefix(txt, "**Before anything else:**") || !strings.Contains(txt, "/plan") || !strings.Contains(txt, "ask which unit") {
+			t.Errorf("unknown unit %q: err = %v, prompt = %.200s", arg, err, txt)
+		}
 	}
 }
 
