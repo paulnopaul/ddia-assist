@@ -16,7 +16,8 @@ flowchart LR
 - **UI-1 Import.** Upload an EPUB, see a parse summary (chapters, sections, figures, word counts,
   proposed units), confirm. Import lives on the Books page (UI-9) and is always available.
 - **UI-2 Reading plan.** Units grouped by chapter, showing word count, approximate page count, status
-  and the latest average score. Units can be merged, split at a heading or renamed (ING-11, ING-12).
+  and the latest average score. Units can be merged, split at a heading or renamed (ING-11, ING-12). Units with study history
+  can only be renamed (ING-14).
 - **UI-3 Mark read / unread.** One button per unit. After it's clicked, the page shows a hint: "Open Claude
   Desktop and run /ddia-study". A read unit can be marked unread again (back to "not started", after a
   confirmation), and the unit page can also set "reading". Unreading takes the unit out of read scope (DAT-5)

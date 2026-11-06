@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -288,5 +289,148 @@ func TestBooks_UI9_UI10(t *testing.T) {
 	}
 	if rec := post(t, h, "/books/active", url.Values{"book": {"999"}}); !strings.Contains(rec.Header().Get("Location"), "error") {
 		t.Error("switching to an unknown book should fail")
+	}
+}
+
+// splittable returns the first unit with at least two sections.
+func splittable(t *testing.T, st *store.Store) store.Unit {
+	t.Helper()
+	for _, u := range mustUnits(t, st) {
+		if len(u.Sections) > 1 {
+			return u
+		}
+	}
+	t.Fatal("test book has no unit with two sections")
+	return store.Unit{}
+}
+
+func saveConcepts(t *testing.T, st *store.Store, unitID int64) []store.Concept {
+	t.Helper()
+	u, err := st.Unit(context.Background(), unitID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := u.Sections[0].ID
+	cs, err := st.SaveConcepts(context.Background(), unitID, []store.ConceptIn{
+		{Name: "A", Definition: "d", SectionRef: ref}, {Name: "B", Definition: "d", SectionRef: ref}, {Name: "C", Definition: "d", SectionRef: ref},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cs
+}
+
+func TestMergeSplit_ING11_FreeUnits(t *testing.T) {
+	h, st := newServer(t)
+	upload(t, h, testbook.HTMLBook())
+	u := splittable(t, st)
+	before := len(mustUnits(t, st))
+	if rec := post(t, h, "/units/"+itoa(u.ID)+"/split", url.Values{"section": {u.Sections[1].ID}}); strings.Contains(rec.Header().Get("Location"), "error") {
+		t.Fatalf("split: %s", rec.Header().Get("Location"))
+	}
+	if got := len(mustUnits(t, st)); got != before+1 {
+		t.Fatalf("units after split = %d, want %d", got, before+1)
+	}
+	if body := do(t, h, httptest.NewRequest(http.MethodGet, "/plan", nil)).Body.String(); !strings.Contains(body, "/units/"+itoa(u.ID)+"/merge") {
+		t.Fatal("plan page hides Merge for a free unit")
+	}
+	if rec := post(t, h, "/units/"+itoa(u.ID)+"/merge", nil); strings.Contains(rec.Header().Get("Location"), "error") {
+		t.Fatalf("merge: %s", rec.Header().Get("Location"))
+	}
+	if got := len(mustUnits(t, st)); got != before {
+		t.Fatalf("units after merge = %d, want %d", got, before)
+	}
+}
+
+func TestMergeSplit_ING14_RefusedOnStudiedUnits(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name  string
+		study func(t *testing.T, st *store.Store, id int64)
+	}{
+		{"concepts", func(t *testing.T, st *store.Store, id int64) {
+			st.SetStatus(ctx, id, store.StatusRead)
+			saveConcepts(t, st, id)
+		}},
+		{"session", func(t *testing.T, st *store.Store, id int64) {
+			st.SetStatus(ctx, id, store.StatusRead)
+			cs := saveConcepts(t, st, id)
+			var scores []store.ScoreIn
+			for _, c := range cs {
+				scores = append(scores, store.ScoreIn{ConceptID: c.ID, Score: 2})
+			}
+			if _, _, err := st.RecordAssessment(ctx, store.Assessment{UnitID: id,
+				Answers:       []store.AnswerIn{{Step: "explain", Prompt: "Explain", Response: "r"}},
+				ConceptScores: scores}); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"status", func(t *testing.T, st *store.Store, id int64) {
+			if err := st.SetStatus(ctx, id, store.StatusStudied); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, st := newServer(t)
+			upload(t, h, testbook.HTMLBook())
+			u := splittable(t, st)
+			// Split once while the unit is free, so it has a neighbour in the same chapter.
+			if err := st.SplitAt(ctx, u.ID, u.Sections[1].ID); err != nil {
+				t.Fatal(err)
+			}
+			var next store.Unit
+			for i, x := range mustUnits(t, st) {
+				if x.ID == u.ID {
+					next = mustUnits(t, st)[i+1]
+				}
+			}
+			tc.study(t, st, next.ID)
+			before := mustUnits(t, st)
+
+			// Merging into a studied unit and merging a studied unit away are both refused.
+			if err := st.MergeWithNext(ctx, u.ID); !errors.Is(err, store.ErrStudied) {
+				t.Fatalf("merge into studied unit: err = %v, want ErrStudied", err)
+			}
+			rec := post(t, h, "/units/"+itoa(u.ID)+"/merge", nil)
+			if loc := rec.Header().Get("Location"); !strings.Contains(loc, "error") || !strings.Contains(loc, "study+history") {
+				t.Fatalf("merge via web: %s", loc)
+			}
+			if err := st.MergeWithNext(ctx, next.ID); err != nil && !errors.Is(err, store.ErrStudied) && !strings.Contains(err.Error(), "no following unit") {
+				t.Fatalf("merge studied unit: %v", err)
+			}
+			if got := mustUnits(t, st); len(got) != len(before) {
+				t.Fatalf("units changed: %d -> %d", len(before), len(got))
+			}
+
+			plan := do(t, h, httptest.NewRequest(http.MethodGet, "/plan", nil)).Body.String()
+			for _, id := range []int64{u.ID, next.ID} {
+				if strings.Contains(plan, "/units/"+itoa(id)+"/merge") {
+					t.Errorf("plan page offers Merge on unit %d next to a studied unit", id)
+				}
+			}
+
+			// Splitting a studied unit is refused when it has a heading to split at.
+			full, _ := st.Unit(ctx, next.ID, false)
+			if !full.Studied {
+				t.Fatal("unit should report Studied")
+			}
+			if len(full.Sections) > 1 {
+				if err := st.SplitAt(ctx, next.ID, full.Sections[1].ID); !errors.Is(err, store.ErrStudied) {
+					t.Fatalf("split: err = %v, want ErrStudied", err)
+				}
+			}
+			if err := st.SplitAt(ctx, next.ID, full.Sections[0].ID); !errors.Is(err, store.ErrStudied) {
+				t.Fatalf("split checks study history first: err = %v", err)
+			}
+			page := do(t, h, httptest.NewRequest(http.MethodGet, "/units/"+itoa(next.ID), nil)).Body.String()
+			if strings.Contains(page, "Split here") || !strings.Contains(page, "can't be split or merged") {
+				t.Error("unit page must hide Split and explain why")
+			}
+			// Renaming stays allowed.
+			if err := st.Rename(ctx, next.ID, "Renamed"); err != nil {
+				t.Fatalf("rename: %v", err)
+			}
+		})
 	}
 }

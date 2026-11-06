@@ -59,3 +59,9 @@ flowchart TD
   it, from the web UI. Manual edits are kept when the planner is re-run.
 - **ING-12** Each unit gets a title. By default it's the first section's heading, or
   "A – B" when the unit spans several sections. The user can rename it.
+- **ING-14** A unit with study history MUST NOT be merged or split. A unit has study history when it has a
+  study session, saved concepts (and so possibly review items) or the status `studied`. Merging is refused when
+  either of the two units has study history. The refusal names the unit and says why, and the web UI hides the
+  Merge and Split controls it would refuse. This keeps sessions, scores and the review queue attached to the
+  exact sections they were recorded against; merging would otherwise delete the second unit's history.
+  Renaming a studied unit stays allowed.

@@ -249,6 +249,14 @@ func (s *server) plan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var chapters []chapterView
+	// canMerge marks units whose Merge button would succeed: the next unit is in the
+	// same chapter and neither has study history (ING-11, ING-14).
+	canMerge := map[int64]bool{}
+	for i, u := range units {
+		if i+1 < len(units) && units[i+1].Chapter == u.Chapter && !u.Studied && !units[i+1].Studied {
+			canMerge[u.ID] = true
+		}
+	}
 	for _, u := range units {
 		if len(chapters) == 0 || chapters[len(chapters)-1].Number != u.Chapter {
 			chapters = append(chapters, chapterView{Number: u.Chapter})
@@ -260,7 +268,7 @@ func (s *server) plan(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	s.render(w, r, "plan", "Reading plan", map[string]any{"Units": units, "Chapters": chapters, "Scores": scores})
+	s.render(w, r, "plan", "Reading plan", map[string]any{"Units": units, "Chapters": chapters, "Scores": scores, "CanMerge": canMerge})
 }
 
 func (s *server) unit(w http.ResponseWriter, r *http.Request) {

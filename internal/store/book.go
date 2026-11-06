@@ -49,6 +49,7 @@ type Unit struct {
 	Manual   bool
 	Status   string
 	ReadAt   string
+	Studied  bool      // has study history, so it can't be merged or split (ING-14)
 	Sections []Section // headings only unless loaded with text
 }
 
@@ -217,11 +218,35 @@ func (s *Store) DeleteBook(ctx context.Context, id int64) error {
 	})
 }
 
-const unitCols = `u.id, u.book_id, u.ord, u.chapter, u.title, u.words, u.manual, p.status, COALESCE(p.read_at, '')`
+const unitCols = `u.id, u.book_id, u.ord, u.chapter, u.title, u.words, u.manual, p.status, COALESCE(p.read_at, ''), ` + studiedExpr
+
+// studiedExpr is true when a unit has study history (ING-14): a session, saved concepts
+// (review items hang off concepts) or the status "studied".
+const studiedExpr = `(p.status = 'studied'
+	OR EXISTS (SELECT 1 FROM session se WHERE se.unit_id = u.id)
+	OR EXISTS (SELECT 1 FROM concept co WHERE co.unit_id = u.id))`
+
+// ErrStudied is returned when a merge or split touches a unit with study history (ING-14).
+var ErrStudied = errors.New("has study history, so it can't be merged or split")
+
+// checkNotStudied returns an error naming the unit if it has study history (ING-14).
+func checkNotStudied(ctx context.Context, tx *sql.Tx, unitID int64) error {
+	var studied bool
+	if err := tx.QueryRowContext(ctx, `SELECT `+studiedExpr+` FROM unit u JOIN progress p ON p.unit_id = u.id WHERE u.id = ?`, unitID).Scan(&studied); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if studied {
+		return fmt.Errorf("unit #%d %w", unitID, ErrStudied)
+	}
+	return nil
+}
 
 func scanUnit(sc interface{ Scan(...any) error }) (Unit, error) {
 	var u Unit
-	err := sc.Scan(&u.ID, &u.BookID, &u.Ord, &u.Chapter, &u.Title, &u.Words, &u.Manual, &u.Status, &u.ReadAt)
+	err := sc.Scan(&u.ID, &u.BookID, &u.Ord, &u.Chapter, &u.Title, &u.Words, &u.Manual, &u.Status, &u.ReadAt, &u.Studied)
 	return u, err
 }
 
@@ -327,6 +352,7 @@ func (s *Store) Rename(ctx context.Context, unitID int64, title string) error {
 }
 
 // MergeWithNext merges a unit with the following unit of the same chapter (ING-11).
+// Both units must be free of study history (ING-14).
 func (s *Store) MergeWithNext(ctx context.Context, unitID int64) error {
 	return s.withTx(ctx, func(tx *sql.Tx) error {
 		var ord, chapter int
@@ -341,6 +367,11 @@ func (s *Store) MergeWithNext(ctx context.Context, unitID int64) error {
 			Scan(&nextID, &nextChapter, &nextWords, &nextTitle)
 		if err != nil || nextChapter != chapter {
 			return errors.New("no following unit in the same chapter")
+		}
+		for _, id := range []int64{unitID, nextID} {
+			if err := checkNotStudied(ctx, tx, id); err != nil {
+				return err
+			}
 		}
 		var first string
 		if err := tx.QueryRowContext(ctx, `SELECT title FROM unit WHERE id = ?`, unitID).Scan(&first); err != nil {
@@ -361,8 +392,12 @@ func (s *Store) MergeWithNext(ctx context.Context, unitID int64) error {
 }
 
 // SplitAt splits a unit so that sectionID starts a new unit (ING-11).
+// The unit must be free of study history (ING-14).
 func (s *Store) SplitAt(ctx context.Context, unitID int64, sectionID string) error {
 	return s.withTx(ctx, func(tx *sql.Tx) error {
+		if err := checkNotStudied(ctx, tx, unitID); err != nil {
+			return err
+		}
 		var splitOrd int
 		if err := tx.QueryRowContext(ctx, `SELECT ord FROM unit_section WHERE unit_id = ? AND section_id = ?`, unitID, sectionID).Scan(&splitOrd); err != nil {
 			return errors.New("section is not in this unit")

@@ -13,7 +13,7 @@
 
 | Prefix | Spec | Implemented |
 |---|---|---|
-| ING | [01 Ingest](01-ingest.md) | ING-1–7, ING-9–13; ING-8 partly (same file is a no-op; a new edition is imported as a separate book) |
+| ING | [01 Ingest](01-ingest.md) | ING-1–7, ING-9–14; ING-8 partly (same file is a no-op; a new edition is imported as a separate book) |
 | DAT | [02 Data model](02-data-model.md) | DAT-1–7 |
 | MCP | [03 MCP interface](03-mcp.md) | MCP-1–10; all tools |
 | SES | [04 Study session](04-study-session.md) | SES-1–16 (steps, shapes, scoring rules and English feedback via the `ddia-study` prompt; validation in `record_assessment`) |
