@@ -85,3 +85,17 @@ func TestPrompt_REV8_EnglishCheckStaysInChat(t *testing.T) {
 		}
 	}
 }
+
+func TestPrompt_REV10_HeadingNeverNamesConcept(t *testing.T) {
+	e := setup(t, false)
+	res, err := e.cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "ddia-review", Arguments: map[string]string{"limit": "3"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	txt := res.Messages[0].Content.(*mcp.TextContent).Text
+	for _, want := range []string{"No giveaways", "Question 3 of 10 (`explain_failure`)", "never the concept's name", "Name the concept in your feedback"} {
+		if !strings.Contains(txt, want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+}
