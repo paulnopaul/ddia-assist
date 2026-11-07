@@ -14,7 +14,7 @@ flowchart LR
   in through a cgo-free driver (FTS5 included).
 - **DEP-2** `docker compose up -d` MUST be enough to start it. The port is bound to `127.0.0.1` only, and data lives in
   the named volume `ddia-data`. A named volume is used rather than a host bind mount like `./data`: on Linux, Docker creates a missing bind-mount
-  directory owned by root, and the container's non-root user then can't write to it. To back up, run `docker cp ddia:/data ./backup`.
+  directory owned by root, and the container's non-root user then can't write to it. To back up, see DEP-8.
 
 ```yaml
 services:
@@ -50,3 +50,11 @@ volumes:
 - **DEP-5** There's no authentication, because of DEP-2's localhost binding. The book text only leaves the
   machine inside your own Claude conversations.
 - **DEP-6** CI builds and tests on every PR and publishes the image to GHCR from `main`.
+- **DEP-7** A `Makefile` is the one entry point for common tasks: `up`, `down`, `test`, `lint`, `vet`, `build`
+  and `backup`. The Dockerfile's build stage MUST run `make lint vet test build`, and CI MUST run the same
+  `lint`, `vet` and `test` targets, so a local run, CI and the image build check the same things.
+- **DEP-8** `make backup` stops the `ddia` container if it is running, copies `/data` out of it into
+  `backups/ddia-data-<UTC time>.tar.gz` on the host, and starts the container again only if it was running.
+  Stopping first lets SQLite checkpoint its WAL, so the copy is consistent. The container MUST be started again
+  even when the copy fails. `backups/` holds book text and is git-ignored. To restore, stop the container and copy
+  the archive's `data/` back with `docker cp`.

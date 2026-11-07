@@ -20,8 +20,11 @@ flowchart LR
 ## Run it
 
 ```sh
-docker compose up -d          # tracker at http://localhost:8080
+make up                       # docker compose up -d --build; tracker at http://localhost:8080
 ```
+
+Other targets: `make down`, `make backup` (stops the container, writes `backups/ddia-data-<time>.tar.gz`,
+starts it again), and `make test`, `make lint`, `make vet`, `make build` for development. `make help` lists them.
 
 Then add this to Claude Desktop's `claude_desktop_config.json` and restart Claude Desktop:
 
