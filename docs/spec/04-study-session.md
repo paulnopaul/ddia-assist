@@ -41,6 +41,13 @@ sequenceDiagram
   to reread. Then `record_assessment`.
 - **SES-5** Claude MUST NOT reveal answers before you've answered. If you say "I don't know",
   that counts as an answer and scores 0.
+- **SES-17 No giveaways.** Nothing shown with a question before you answer, whether a heading,
+  a label, a progress line or the question text, may name the concept under test or any term
+  the question asks you to supply. A question that says "name the effect" or "which mechanism…"
+  MUST NOT carry that effect's or mechanism's name, or a near-synonym, anywhere above or beside
+  it. A question heading holds only the step, the count and the shape, e.g.
+  "Question 3 of 10 (`explain_failure`)" or "Probe 2". The concept is named in the feedback,
+  after you've answered.
 
 ## Tasks
 

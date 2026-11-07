@@ -192,3 +192,17 @@ func TestPrompt_SES14_SES15_SES16_EnglishCheckStaysInChat(t *testing.T) {
 		}
 	}
 }
+
+func TestPrompt_SES17_NoGiveaways(t *testing.T) {
+	e := setup(t, true)
+	res, err := e.cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "ddia-study"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	txt := res.Messages[0].Content.(*mcp.TextContent).Text
+	for _, want := range []string{"## No giveaways", "only the step, the count and the shape", "any term the question asks me to supply", "Name the concept in your feedback"} {
+		if !strings.Contains(txt, want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+}

@@ -29,3 +29,6 @@ stateDiagram-v2
   session (SES-14, SES-16), under the same chat-only rule (SES-15).
 - **REV-9** The review queue is per book: `get_due_reviews`, the due count and the concepts page cover the
   active book only (MCP-9). Switching books, or `ddia-review` with a `book` arg (MCP-10), reviews another book's queue.
+- **REV-10** Review questions follow SES-17: the heading or label before each question shows only the
+  count and the shape (e.g. "Question 3 of 10 (`explain_failure`)"), never the concept's name. The
+  concept is named in the feedback, after the answer.
