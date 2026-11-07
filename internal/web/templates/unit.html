@@ -13,6 +13,7 @@
 <p class="muted">To study this unit in Claude Desktop, pick the <b>ddia-study</b> prompt and enter <code>{{.ID}}</code> as the unit, or leave it empty to study the next read unit.</p>
 
 <h2>Sections</h2>
+{{if .Studied}}<p class="muted">This unit has study history, so it can't be split or merged. You can still rename it.</p>{{end}}
 <table>
   <tr><th>ID</th><th>Heading</th><th>Words</th><th></th></tr>
   {{$u := .}}
@@ -21,7 +22,7 @@
     <td class="muted">{{$s.ID}}</td>
     <td style="padding-left:{{indent $s.Level}}px">{{$s.Heading}}</td>
     <td>{{$s.Words}}</td>
-    <td>{{if $i}}<form class="inline" method="post" action="/units/{{$u.ID}}/split"><input type="hidden" name="section" value="{{$s.ID}}"><button title="Start a new unit here">Split here</button></form>{{end}}</td>
+    <td>{{if and $i (not $u.Studied)}}<form class="inline" method="post" action="/units/{{$u.ID}}/split"><input type="hidden" name="section" value="{{$s.ID}}"><button title="Start a new unit here">Split here</button></form>{{end}}</td>
   </tr>
   {{end}}
 </table>
