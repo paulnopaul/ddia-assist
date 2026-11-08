@@ -99,3 +99,41 @@ func TestPrompt_REV10_HeadingNeverNamesConcept(t *testing.T) {
 		}
 	}
 }
+
+func TestDueReviews_REV11_WeakestFirst(t *testing.T) {
+	e, u, cs := studyReady(t)
+	// scores: cs[0]=0 (missing), cs[1]=1 (shaky), cs[2]=2 (solid).
+	if out, isErr := e.call("record_assessment", assessment(u, cs)); isErr {
+		t.Fatal(out)
+	}
+	// The solid concept is the most overdue, the missing one the least, as in a real
+	// queue where older solid items pile up ahead of newer weak ones.
+	for i, ago := range []string{"-1 day", "-3 days", "-9 days"} {
+		e.st.DB.Exec(`UPDATE review_item SET due_at = datetime('now', ?) WHERE concept_id = ?`, ago, cs[i].ID)
+	}
+	out, _ := e.call("get_due_reviews", map[string]any{"limit": 2})
+	var due dueOut
+	if err := json.Unmarshal([]byte(out), &due); err != nil || len(due.Due) != 2 {
+		t.Fatalf("due: %s", out)
+	}
+	if due.Due[0].ConceptID != cs[0].ID || due.Due[1].ConceptID != cs[1].ID {
+		t.Fatalf("want missing then shaky, solid left out; got %+v", due.Due)
+	}
+	// Within one score, the most overdue comes first.
+	e.st.DB.Exec(`UPDATE review_item SET last_score = 1`)
+	out, _ = e.call("get_due_reviews", map[string]any{"limit": 3})
+	if err := json.Unmarshal([]byte(out), &due); err != nil || len(due.Due) != 3 || due.Due[0].ConceptID != cs[2].ID || due.Due[2].ConceptID != cs[0].ID {
+		t.Fatalf("same score should go by due_at: %s", out)
+	}
+}
+
+func TestPrompt_REV11_KeepsWeakestFirstOrder(t *testing.T) {
+	e := setup(t, false)
+	res, err := e.cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "ddia-review"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if txt := res.Messages[0].Content.(*mcp.TextContent).Text; !strings.Contains(txt, "weakest first") || !strings.Contains(txt, "in the order returned") {
+		t.Fatalf("prompt: %s", txt)
+	}
+}

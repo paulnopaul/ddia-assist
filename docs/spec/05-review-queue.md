@@ -32,3 +32,7 @@ stateDiagram-v2
 - **REV-10** Review questions follow SES-17: the heading or label before each question shows only the
   count and the shape (e.g. "Question 3 of 10 (`explain_failure`)"), never the concept's name. The
   concept is named in the feedback, after the answer.
+- **REV-11** Weakest first. `get_due_reviews` orders due items by their last score, lowest first
+  (0 missing, then 1 shaky, then 2 solid, then 3), and within one score by `due_at`, most overdue
+  first. So when more items are due than the session's `limit`, the session takes the weakest ones
+  and solid items wait. The `ddia-review` prompt asks the questions in the order returned.

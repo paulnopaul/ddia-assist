@@ -17,6 +17,6 @@
 | DAT | [02 Data model](02-data-model.md) | DAT-1–7 |
 | MCP | [03 MCP interface](03-mcp.md) | MCP-1–10; all tools |
 | SES | [04 Study session](04-study-session.md) | SES-1–17 (steps, shapes, scoring rules and English feedback via the `ddia-study` prompt; validation in `record_assessment`) |
-| REV | [05 Review queue](05-review-queue.md) | REV-1–10 |
+| REV | [05 Review queue](05-review-queue.md) | REV-1–11 |
 | UI  | [06 Web UI](06-web-ui.md) | UI-1–10 |
 | DEP | [07 Deployment](07-deployment.md) | DEP-1, DEP-2, DEP-3, DEP-4, DEP-6 (M0) |

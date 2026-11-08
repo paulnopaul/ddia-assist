@@ -42,12 +42,13 @@ func scanReviews(rows *sql.Rows) ([]DueReview, error) {
 	return out, rows.Err()
 }
 
-// DueReviews returns a book's due items in read scope, oldest due first (REV-5, REV-6).
+// DueReviews returns a book's due items in read scope, weakest first: by last score (missing,
+// then shaky, then solid), then most overdue first within a score (REV-5, REV-6, REV-11).
 func (s *Store) DueReviews(ctx context.Context, bookID int64, limit int) ([]DueReview, error) {
 	if limit <= 0 {
 		limit = 5
 	}
-	rows, err := s.DB.QueryContext(ctx, `SELECT `+reviewCols+reviewFrom+` AND ri.due_at <= datetime('now') ORDER BY ri.due_at LIMIT ?`, bookID, limit)
+	rows, err := s.DB.QueryContext(ctx, `SELECT `+reviewCols+reviewFrom+` AND ri.due_at <= datetime('now') ORDER BY ri.last_score, ri.due_at, ri.concept_id LIMIT ?`, bookID, limit)
 	if err != nil {
 		return nil, err
 	}

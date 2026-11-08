@@ -37,7 +37,7 @@ flowchart LR
 | `save_concepts` | `unit_id`, `[{name, definition, section_ref}]` | Stores the unit's 3–12 key concepts, each citing a section of that unit. Only allowed if the unit has none yet |
 | `get_weak_concepts` | `limit` | Concepts in read scope with current score ≤ 1, weakest first |
 | `record_assessment` | see below | Stores a study session, marks the unit `studied`, updates the review queue |
-| `get_due_reviews` | `limit` | Due review items with concept, definition, last gap |
+| `get_due_reviews` | `limit` | Due review items with concept, definition, last gap; weakest first (REV-11) |
 | `record_review` | `concept_id`, `prompt`, `response`, `score`, `feedback` | Stores a review answer and reschedules the item |
 | `mark_read` | `unit_id` | Marks a unit read (same as the button in the UI) |
 
