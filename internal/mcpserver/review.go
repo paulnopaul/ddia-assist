@@ -26,7 +26,7 @@ type reviewOut struct {
 }
 
 func (s *server) addReview(srv *mcp.Server) {
-	mcp.AddTool(srv, &mcp.Tool{Name: "get_due_reviews", Description: "Concepts due for spaced review (from read units only), with the last gap and last review question."}, s.getDueReviews)
+	mcp.AddTool(srv, &mcp.Tool{Name: "get_due_reviews", Description: "Concepts due for spaced review (from read units only), weakest first (lowest last score, then most overdue), with the last gap and last review question."}, s.getDueReviews)
 	mcp.AddTool(srv, &mcp.Tool{Name: "record_review", Description: "Store one review answer with a 0-3 score and reschedule the concept. The question must differ from the concept's last one."}, s.recordReview)
 
 	srv.AddPrompt(&mcp.Prompt{
