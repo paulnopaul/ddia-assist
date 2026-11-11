@@ -26,8 +26,6 @@ The repo is public. No EPUB files, extracted text, database files or figures. `.
 ## Checks
 
 ```sh
-gofmt -l .        # must print nothing
-go vet ./...
-go test -race ./...
+make lint vet test   # gofmt, go vet, go test -race; the same targets CI and the Dockerfile run
 docker build .
 ```

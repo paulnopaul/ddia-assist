@@ -16,10 +16,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: gofmt
-        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
-      - run: go vet ./...
-      - run: go test -race ./...
+      # DEP-7: same make targets as the Dockerfile and local development.
+      - run: make lint vet test
 
   image:
     runs-on: ubuntu-latest
