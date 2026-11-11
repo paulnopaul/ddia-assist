@@ -41,8 +41,9 @@ func assessment(u store.Unit, cs []store.Concept) map[string]any {
 	return map[string]any{
 		"unit_id": u.ID,
 		"answers": []map[string]any{
-			{"step": "explain", "prompt": "Explain the unit", "response": "Logs are appended…"},
+			{"step": "probe", "prompt": "Why append only?", "response": "Sequential writes", "score": 2},
 			{"step": "probe", "prompt": "Why compact?", "response": "To save space", "score": 2, "feedback": "Yes."},
+			{"step": "probe", "prompt": "What breaks without a hash index?", "response": "Reads scan the log", "score": 1},
 			{"step": "apply", "task_shape": "predict_outcome", "prompt": "What happens if…", "response": "It grows", "score": 1},
 		},
 		"concept_scores": scores,
@@ -71,7 +72,7 @@ func TestRecordAssessment_MCP3_MCP4_Validation(t *testing.T) {
 	if !isErr {
 		t.Fatal("invalid assessment accepted")
 	}
-	for _, want := range []string{"fix and retry", "explain answer is required", "score must be 0-3", "needs a score (SES-10)", "not a section the user has read", "section_ref is required"} {
+	for _, want := range []string{"fix and retry", "1 probe answers for 3 concepts", "score must be 0-3", "needs a score (SES-10)", "not a section the user has read", "section_ref is required"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("error missing %q: %s", want, out)
 		}
@@ -102,7 +103,7 @@ func TestRecordAssessment_SES12_MarksStudied_MCP5_Idempotent(t *testing.T) {
 		t.Fatalf("repeat call: %+v vs %+v", r2, r1)
 	}
 	sessions, _ := e.st.Sessions(context.Background(), u.ID)
-	if len(sessions) != 1 || len(sessions[0].Answers) != 3 || sessions[0].Answers[0].Response != "Logs are appended…" || len(sessions[0].Gaps) != 1 {
+	if len(sessions) != 1 || len(sessions[0].Answers) != 4 || sessions[0].Answers[0].Response != "Sequential writes" || len(sessions[0].Gaps) != 1 {
 		t.Fatalf("sessions = %+v", sessions)
 	}
 	// cs[1] scored 1 → weak.
@@ -145,8 +146,8 @@ func TestPrompt_MCP6_DDIAStudy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// SES-1 (expected size of the explanation) and SES-13 (scoring rules) are part of the prompt text.
-	for _, want := range []string{"next_to_study", "## 1. Explain", "150–300 words", "Scoring rules", "3 is earned", "record_assessment", "predict_outcome"} {
+	// SES-2 (questions cover every concept, no cap) and SES-13 (scoring rules) are part of the prompt text.
+	for _, want := range []string{"next_to_study", "## 1. Probe", "every concept of this unit", "no limit on the number of questions", "Scoring rules", "3 is earned", "record_assessment", "predict_outcome"} {
 		if !strings.Contains(txt, want) {
 			t.Errorf("prompt missing %q", want)
 		}
@@ -204,5 +205,21 @@ func TestPrompt_SES17_NoGiveaways(t *testing.T) {
 		if !strings.Contains(txt, want) {
 			t.Errorf("prompt missing %q", want)
 		}
+	}
+}
+
+func TestRecordAssessment_SES2_AQuestionPerConcept(t *testing.T) {
+	e, u, cs := studyReady(t)
+	a := assessment(u, cs)
+	answers := a["answers"].([]map[string]any)
+	// Two probes for three concepts is too few.
+	a["answers"] = append([]map[string]any{}, answers[1:]...)
+	if out, isErr := e.call("record_assessment", a); !isErr || !strings.Contains(out, "2 probe answers for 3 concepts") {
+		t.Fatalf("too few probes accepted: %s", out)
+	}
+	// An explain answer from an older client is still accepted, but no longer required (SES-1 dropped).
+	a["answers"] = append([]map[string]any{{"step": "explain", "prompt": "Explain", "response": "r"}}, answers...)
+	if out, isErr := e.call("record_assessment", a); isErr {
+		t.Fatalf("legacy explain answer rejected: %s", out)
 	}
 }

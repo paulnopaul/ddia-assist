@@ -47,7 +47,6 @@ flowchart LR
 {
   "unit_id": 12,
   "answers": [
-    {"step": "explain", "prompt": "...", "response": "...", "feedback": "..."},
     {"step": "probe",   "prompt": "...", "response": "...", "feedback": "...", "score": 2},
     {"step": "apply",   "task_shape": "predict_outcome", "prompt": "...", "response": "...", "feedback": "...", "score": 1}
   ],
@@ -57,7 +56,7 @@ flowchart LR
 ```
 
 - **MCP-3** `record_assessment` MUST reject: a score outside 0–3, a concept that doesn't belong to
-  the unit or an earlier unit in read scope, a `section_ref` outside read scope, a missing `explain` answer, more than one `apply` answer, an `apply` without a known task shape, or a concept of the unit left unscored (SES-10).
+  the unit or an earlier unit in read scope, a `section_ref` outside read scope, fewer `probe` answers than the unit has concepts (SES-2), more than one `apply` answer, an `apply` without a known task shape, or a concept of the unit left unscored (SES-10).
   The error message says what to fix, so Claude can retry.
 - **MCP-4** Each gap MUST cite a `section_ref`. This makes Claude ground every criticism in the book's text rather than its own memory of DDIA.
 - **MCP-5** Writes are idempotent per call. Claude MAY pass a `client_session_id`, and a

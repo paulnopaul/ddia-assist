@@ -53,7 +53,7 @@ func (s *server) addStudy(srv *mcp.Server) {
 	srv.AddPrompt(&mcp.Prompt{
 		Name:        "ddia-study",
 		Title:       "Study a unit",
-		Description: "Explain, probe, apply and verdict for the next read unit, or the one you name.",
+		Description: "Probe questions covering every concept, one task and a verdict for the next read unit, or the one you name.",
 		Arguments: []*mcp.PromptArgument{
 			{Name: "unit", Description: "Optional. The unit's number from the web UI (#12) or a few words of its title. " +
 				"Leave empty to study the next read, unstudied unit."},

@@ -144,7 +144,7 @@ func (s *Store) SaveConcepts(ctx context.Context, unitID int64, in []ConceptIn) 
 }
 
 type AnswerIn struct {
-	Step      string `json:"step" jsonschema:"explain, probe or apply"`
+	Step      string `json:"step" jsonschema:"probe or apply (explain is still accepted from older sessions)"`
 	TaskShape string `json:"task_shape,omitempty" jsonschema:"for apply: predict_outcome, spot_the_flaw, choose_and_justify or explain_failure"`
 	Prompt    string `json:"prompt" jsonschema:"the question or task as asked"`
 	Response  string `json:"response" jsonschema:"the user's answer, verbatim"`
@@ -193,12 +193,13 @@ func (s *Store) RecordAssessment(ctx context.Context, a Assessment) (int64, bool
 		return 0, false, ErrOutOfScope
 	}
 	var problems []string
-	explains, applies := 0, 0
+	probes, applies := 0, 0
 	for i, an := range a.Answers {
 		switch an.Step {
 		case "explain":
-			explains++
+			// No longer asked for (SES-1 dropped); accepted so older clients still record.
 		case "probe":
+			probes++
 		case "apply":
 			applies++
 			if !TaskShapes[an.TaskShape] {
@@ -214,9 +215,6 @@ func (s *Store) RecordAssessment(ctx context.Context, a Assessment) (int64, bool
 			problems = append(problems, fmt.Sprintf("answer %d: prompt is empty", i))
 		}
 	}
-	if explains == 0 {
-		problems = append(problems, "an explain answer is required")
-	}
 	if applies > 1 {
 		problems = append(problems, "at most one apply answer")
 	}
@@ -227,6 +225,8 @@ func (s *Store) RecordAssessment(ctx context.Context, a Assessment) (int64, bool
 	}
 	if len(unitConcepts) == 0 {
 		problems = append(problems, "this unit has no concepts yet; call save_concepts first")
+	} else if probes < len(unitConcepts) {
+		problems = append(problems, fmt.Sprintf("%d probe answers for %d concepts: ask at least one question per concept of the unit (SES-2)", probes, len(unitConcepts)))
 	}
 	allowed, err := s.allowedConcepts(ctx, u.BookID, u.Ord)
 	if err != nil {

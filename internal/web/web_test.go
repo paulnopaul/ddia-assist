@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -126,7 +127,7 @@ func TestUnitPage_UI4_SessionsAndOverride_SES11(t *testing.T) {
 		scores = append(scores, store.ScoreIn{ConceptID: c.ID, Score: 1})
 	}
 	if _, _, err := st.RecordAssessment(ctx, store.Assessment{UnitID: u.ID,
-		Answers:       []store.AnswerIn{{Step: "explain", Prompt: "Explain", Response: "my <b>answer</b>"}},
+		Answers:       probes(3, "my <b>answer</b>"),
 		ConceptScores: scores,
 		Gaps:          []store.GapIn{{Description: "missed it", SectionRef: "ch01.s01"}}}); err != nil {
 		t.Fatal(err)
@@ -173,7 +174,7 @@ func TestDashboardAndConcepts_UI5_UI6(t *testing.T) {
 	})
 	scores := []store.ScoreIn{{ConceptID: cs[0].ID, Score: 0}, {ConceptID: cs[1].ID, Score: 3}, {ConceptID: cs[2].ID, Score: 2}}
 	if _, _, err := st.RecordAssessment(ctx, store.Assessment{UnitID: u.ID,
-		Answers: []store.AnswerIn{{Step: "explain", Prompt: "p", Response: "r"}}, ConceptScores: scores}); err != nil {
+		Answers: probes(3, "r"), ConceptScores: scores}); err != nil {
 		t.Fatal(err)
 	}
 	body := do(t, h, httptest.NewRequest(http.MethodGet, "/", nil)).Body.String()
@@ -360,7 +361,7 @@ func TestMergeSplit_ING14_RefusedOnStudiedUnits(t *testing.T) {
 				scores = append(scores, store.ScoreIn{ConceptID: c.ID, Score: 2})
 			}
 			if _, _, err := st.RecordAssessment(ctx, store.Assessment{UnitID: id,
-				Answers:       []store.AnswerIn{{Step: "explain", Prompt: "Explain", Response: "r"}},
+				Answers:       probes(3, "r"),
 				ConceptScores: scores}); err != nil {
 				t.Fatal(err)
 			}
@@ -433,4 +434,15 @@ func TestMergeSplit_ING14_RefusedOnStudiedUnits(t *testing.T) {
 			}
 		})
 	}
+}
+
+// probes returns n probe answers, one per concept as SES-2 requires; the first has the given response.
+func probes(n int, first string) []store.AnswerIn {
+	out := make([]store.AnswerIn, n)
+	for i := range out {
+		score := 1
+		out[i] = store.AnswerIn{Step: "probe", Prompt: fmt.Sprintf("Probe %d", i+1), Response: "r", Score: &score}
+	}
+	out[0].Response = first
+	return out
 }
