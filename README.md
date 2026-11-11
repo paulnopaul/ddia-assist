@@ -41,7 +41,7 @@ For local development without Docker: `go run ./cmd/ddia serve -data ./data`.
 2. Read the next unit in your own e-reader, then click **Mark read**.
 3. In Claude Desktop, pick the **ddia-study** prompt from the ddia server (the "+" menu). Leave **unit** empty to
    study the next read unit, or enter a unit's number (shown as `#12` on the plan) or a few words of its title.
-   Claude asks you to explain the unit from memory, probes the gaps, gives one short task, scores each concept and saves the result.
+   Claude asks questions until every concept of the unit is covered, gives one short task, scores each concept and saves the result.
 4. When reviews are due (the dashboard says so), run the **ddia-review** prompt.
 
 To add another book, upload it on the **Books** page (http://localhost:8080/import). The newest import becomes the
@@ -63,7 +63,7 @@ start as spec changes, and code and tests point back to requirement IDs. See
 | [01 Ingest](docs/spec/01-ingest.md) | EPUB → sections → reading units |
 | [02 Data model](docs/spec/02-data-model.md) | SQLite schema |
 | [03 MCP interface](docs/spec/03-mcp.md) | Tools, prompts, the read-scope rule |
-| [04 Study session](docs/spec/04-study-session.md) | Explain → Probe → Apply → Verdict, scoring, task shapes |
+| [04 Study session](docs/spec/04-study-session.md) | Probe → Apply → Verdict, scoring, task shapes |
 | [05 Review queue](docs/spec/05-review-queue.md) | Spaced review of weak concepts |
 | [06 Web UI](docs/spec/06-web-ui.md) | Tracker pages |
 | [07 Deployment](docs/spec/07-deployment.md) | Docker, Claude Desktop wiring |

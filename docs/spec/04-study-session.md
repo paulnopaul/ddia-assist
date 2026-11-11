@@ -15,27 +15,29 @@ sequenceDiagram
         C->>S: save_concepts(5–10 key concepts)
     end
     C->>S: get_weak_concepts
-    C->>P: 1. Explain the unit from memory
-    P->>C: explanation
-    C->>P: 2. 3–5 probe questions on gaps
-    P->>C: answers
-    C->>P: 3. One short task
+    loop until every concept of the unit has been asked about
+        C->>P: 1. Probe question
+        P->>C: answer
+    end
+    C->>P: 2. One short task
     P->>C: answer
-    C->>P: 4. Verdict: scores, gaps with section refs
+    C->>P: 3. Verdict: scores, gaps with section refs
     C->>S: record_assessment
     S-->>C: ok, next due reviews
 ```
 
 ## Steps
 
-- **SES-1 Explain.** Claude asks for an explanation of the whole unit in your own words, from
-  memory, without looking at the book. Claude MUST NOT show the unit text or a summary first.
-  The ask MUST say how much is expected: roughly one paragraph per main idea, about 150–300
-  words in total, covering what each idea is for and the trade-off behind it rather than
-  definitions. More is never penalised; the size is a guide, not a limit.
-- **SES-2 Probe.** 3–5 questions aimed at what the explanation missed, got wrong or left vague.
-  They focus on *why* and on trade-offs ("what breaks if…", "why not just…"), not on definitions.
-  One question at a time, each with short feedback.
+- ~~**SES-1 Explain.** Claude asks for an explanation of the whole unit in your own words, from
+  memory, before any questions.~~ Dropped: recapping the whole unit up front was too demanding.
+  The session now starts with the probe questions. Claude still MUST NOT show the unit text or a
+  summary before the verdict.
+- **SES-2 Probe.** Questions that together cover every concept of the unit: each concept is
+  asked about at least once, and there is no upper limit on the number of questions. A question
+  MAY touch more than one concept, but each concept gets at least one question aimed at it, and
+  Claude MAY ask follow-ups where an answer was wrong or vague. Questions focus on *why* and on
+  trade-offs ("what breaks if…", "why not just…"), not on definitions. One question at a time,
+  each with short feedback.
 - **SES-3 Apply.** Exactly one task (see below).
 - **SES-4 Verdict.** A short wrap-up: what's solid, what's shaky, and each gap with the section
   to reread. Then `record_assessment`.
@@ -46,7 +48,7 @@ sequenceDiagram
   the question asks you to supply. A question that says "name the effect" or "which mechanism…"
   MUST NOT carry that effect's or mechanism's name, or a near-synonym, anywhere above or beside
   it. A question heading holds only the step, the count and the shape, e.g.
-  "Question 3 of 10 (`explain_failure`)" or "Probe 2". The concept is named in the feedback,
+  "Question 3 of 10 (`explain_failure`)" or "Probe 2 of 8". The concept is named in the feedback,
   after you've answered.
 
 ## Tasks
@@ -88,7 +90,7 @@ Tasks are short, scoped and aimed at one specific piece of reasoning.
     means no 3.
   - 1 is for knowing the term or sensing the problem without being able to say how it works.
   - 0 is for wrong, "I don't know", or not mentioned anywhere in the session.
-  - A concept's score is the best evidence from the whole session (explanation, probes, task),
+  - A concept's score is the best evidence from the whole session (probes and task),
     not an average. Probe and task scores use the same scale and the same rules.
   - Concepts are mechanisms, trade-offs and named techniques. Roles, history and products named
     only as examples are not concepts and MUST NOT be scored.
@@ -101,8 +103,8 @@ Tasks are short, scoped and aimed at one specific piece of reasoning.
 You answer in English, which isn't your first language (B2 now, aiming for C1). Each answer
 doubles as writing practice.
 
-- **SES-14 English check.** After the content feedback on each of your answers (explanation,
-  every probe, the task), Claude adds a short, separate English note: up to three fixes for
+- **SES-14 English check.** After the content feedback on each of your answers (every probe,
+  the task), Claude adds a short, separate English note: up to three fixes for
   grammar, word choice or phrasing, each as what you wrote and a more natural C1-level version,
   with a few words on why. If nothing is worth fixing, it says so in one line. The verdict MAY
   add one line on a pattern that kept recurring.

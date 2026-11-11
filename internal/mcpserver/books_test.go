@@ -117,7 +117,7 @@ func TestReviewQueue_REV9_PerBook(t *testing.T) {
 		scores = append(scores, store.ScoreIn{ConceptID: c.ID, Score: 0})
 	}
 	if _, _, err := e.st.RecordAssessment(ctx, store.Assessment{UnitID: u.ID,
-		Answers: []store.AnswerIn{{Step: "explain", Prompt: "p", Response: "r"}}, ConceptScores: scores}); err != nil {
+		Answers: []store.AnswerIn{{Step: "probe", Prompt: "p1", Response: "r"}, {Step: "probe", Prompt: "p2", Response: "r"}, {Step: "probe", Prompt: "p3", Response: "r"}}, ConceptScores: scores}); err != nil {
 		t.Fatal(err)
 	}
 	e.st.DB.Exec(`UPDATE review_item SET due_at = datetime('now', '-1 day')`)
