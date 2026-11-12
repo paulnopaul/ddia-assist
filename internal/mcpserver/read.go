@@ -151,7 +151,7 @@ func (s *server) getUnit(ctx context.Context, _ *mcp.CallToolRequest, in unitIn)
 	for _, sc := range u.Sections {
 		fmt.Fprintf(&b, "\n%s [%s] %s\n\n%s\n", strings.Repeat("#", min(sc.Level+2, 6)), sc.ID, sc.Heading, sc.Markdown)
 	}
-	extra, err := s.unitExtras(ctx, u.ID)
+	extra, err := s.unitExtras(ctx, *u)
 	if err != nil {
 		return nil, nil, err
 	}

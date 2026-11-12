@@ -12,7 +12,7 @@ sequenceDiagram
     C->>S: get_status, get_unit
     S-->>C: unit text, known concepts
     opt first session for this unit
-        C->>S: save_concepts(5–10 key concepts)
+        C->>S: save_concepts(the unit's concepts, SES-18)
     end
     C->>S: get_weak_concepts
     loop until every concept of the unit has been asked about
@@ -48,8 +48,16 @@ sequenceDiagram
   the question asks you to supply. A question that says "name the effect" or "which mechanism…"
   MUST NOT carry that effect's or mechanism's name, or a near-synonym, anywhere above or beside
   it. A question heading holds only the step, the count and the shape, e.g.
-  "Question 3 of 10 (`explain_failure`)" or "Probe 2 of 8". The concept is named in the feedback,
+  "Question 3 of 10 (`explain_failure`)" or "Probe 2 of 6", where the total is the unit's own count (SES-18). The concept is named in the feedback,
   after you've answered.
+- **SES-18 Concept count.** The number of concepts, and so of probes, follows the unit, never a
+  fixed number. The first time a unit is studied, Claude builds its concept list from the text,
+  section by section: each mechanism, trade-off or named technique the book explains there, with
+  near-duplicates merged and terms only mentioned in passing left out. The list is however long
+  that leaves it. `get_unit` shows a suggested range for the unit's size (about one concept per
+  section with real content and one per 400–1000 words, within 3–15) as a sanity check only:
+  Claude re-checks a list outside it for split or merged ideas but MUST NOT pad or cut it to fit.
+  Probe headings count against the unit's own number of concepts, which grows with follow-ups.
 
 ## Tasks
 

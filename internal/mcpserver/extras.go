@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/paulnopaul/ddia-assist/internal/store"
 )
 
 // addLater registers the study (M3) and review (M4) tools.
@@ -25,6 +27,6 @@ func (s *server) statusExtras(ctx context.Context, bookID int64, out *statusOut)
 	return err
 }
 
-func (s *server) unitExtras(ctx context.Context, unitID int64) (string, error) {
-	return s.conceptsSection(ctx, unitID)
+func (s *server) unitExtras(ctx context.Context, u store.Unit) (string, error) {
+	return s.conceptsSection(ctx, u)
 }
