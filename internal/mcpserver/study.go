@@ -28,7 +28,7 @@ func promptText(name string) string {
 
 type saveConceptsIn struct {
 	UnitID   int64             `json:"unit_id"`
-	Concepts []store.ConceptIn `json:"concepts" jsonschema:"5-10 key concepts of the unit"`
+	Concepts []store.ConceptIn `json:"concepts" jsonschema:"the unit's key concepts, one per mechanism, trade-off or named technique it explains; get_unit suggests a range for its size"`
 }
 
 type conceptsOut struct {
@@ -46,7 +46,7 @@ type recordOut struct {
 }
 
 func (s *server) addStudy(srv *mcp.Server) {
-	mcp.AddTool(srv, &mcp.Tool{Name: "save_concepts", Description: "Store a unit's 5-10 key concepts. Only allowed once per unit, the first time it is studied."}, s.saveConcepts)
+	mcp.AddTool(srv, &mcp.Tool{Name: "save_concepts", Description: "Store a unit's key concepts (3-15; get_unit suggests a range for the unit's size). Only allowed once per unit, the first time it is studied."}, s.saveConcepts)
 	mcp.AddTool(srv, &mcp.Tool{Name: "get_weak_concepts", Description: "Concepts from read units whose current score is 0 or 1, weakest first."}, s.getWeakConcepts)
 	mcp.AddTool(srv, &mcp.Tool{Name: "record_assessment", Description: "Store a finished study session: answers verbatim, a 0-3 score per concept, and gaps citing section IDs. Marks the unit studied. Errors starting with 'fix and retry' list what to correct."}, s.recordAssessment)
 
@@ -200,17 +200,20 @@ func (s *server) recordAssessment(ctx context.Context, _ *mcp.CallToolRequest, i
 	return nil, recordOut{SessionID: id, AlreadyStored: existed, Message: msg}, nil
 }
 
-// conceptsSection lists a unit's known concepts for get_unit.
-func (s *server) conceptsSection(ctx context.Context, unitID int64) (string, error) {
-	cs, err := s.st.Concepts(ctx, unitID)
+// conceptsSection lists a unit's known concepts for get_unit, or, before there are any, the
+// suggested range for the unit's size (SES-18).
+func (s *server) conceptsSection(ctx context.Context, u store.Unit) (string, error) {
+	cs, err := s.st.Concepts(ctx, u.ID)
 	if err != nil {
 		return "", err
 	}
 	if len(cs) == 0 {
-		return "\n---\nKnown concepts: none yet. Pick 5-10 and call save_concepts before scoring.\n", nil
+		lo, hi := u.ConceptRange()
+		return fmt.Sprintf("\n---\nKnown concepts: none yet. Build the list from the text, section by section, and call save_concepts before scoring. "+
+			"For a unit of %d words, expect about %d-%d concepts; if your list falls outside that, check you haven't split one idea or merged two, but don't pad or cut to fit.\n", u.Words, lo, hi), nil
 	}
 	var b strings.Builder
-	b.WriteString("\n---\nKnown concepts (use these IDs in record_assessment):\n")
+	fmt.Fprintf(&b, "\n---\nKnown concepts: %d (use these IDs in record_assessment; ask at least one probe per concept, so the probe count starts at %d):\n", len(cs), len(cs))
 	for _, c := range cs {
 		score := "never scored"
 		if c.Score != nil {

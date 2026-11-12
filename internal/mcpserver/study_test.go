@@ -223,3 +223,36 @@ func TestRecordAssessment_SES2_AQuestionPerConcept(t *testing.T) {
 		t.Fatalf("legacy explain answer rejected: %s", out)
 	}
 }
+
+func TestGetUnit_SES18_SuggestsRangeThenCountsConcepts(t *testing.T) {
+	e := setup(t, true)
+	u := e.units()[0]
+	e.call("mark_read", map[string]any{"unit_id": u.ID})
+	out, _ := e.call("get_unit", map[string]any{"unit_id": u.ID})
+	if !strings.Contains(out, "none yet") || !strings.Contains(out, "expect about") || strings.Contains(out, "5-10") {
+		t.Fatalf("get_unit before concepts should suggest a size-based range: %s", out)
+	}
+	e, u, cs := studyReady(t)
+	out, _ = e.call("get_unit", map[string]any{"unit_id": u.ID})
+	if want := fmt.Sprintf("Known concepts: %d", len(cs)); !strings.Contains(out, want) {
+		t.Fatalf("get_unit should give the concept count %q: %s", want, out)
+	}
+}
+
+func TestPrompt_SES18_NoFixedConceptOrProbeCount(t *testing.T) {
+	b, err := promptFS.ReadFile("prompts/ddia-study.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	txt := string(b)
+	for _, banned := range []string{"of 8", "5–10", "5-10"} {
+		if strings.Contains(txt, banned) {
+			t.Errorf("prompt still anchors on a fixed count: %q", banned)
+		}
+	}
+	for _, want := range []string{"section by section", "don't pad or cut", "number of concepts this unit has"} {
+		if !strings.Contains(txt, want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+}

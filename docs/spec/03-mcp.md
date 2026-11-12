@@ -30,11 +30,11 @@ flowchart LR
 | Tool | Input | Returns / effect |
 |---|---|---|
 | `get_status` | – | Active book's title, current unit, units read/studied/total, number of due reviews, 5 weakest concepts, and the titles of the other books |
-| `get_unit` | `unit_id?` (defaults to the next unit that is read but not yet studied) | Unit title, section IDs and Markdown, figure captions, known concepts |
+| `get_unit` | `unit_id?` (defaults to the next unit that is read but not yet studied) | Unit title, section IDs and Markdown, figure captions, known concepts and their count, or, before any are saved, the suggested range for the unit's size (SES-18) |
 | `get_section` | `section_id` | One section's Markdown |
 | `get_figure` | `figure_id` | The image as MCP image content |
 | `search_book` | `query`, `limit≤10` | FTS snippets with section IDs, read scope only |
-| `save_concepts` | `unit_id`, `[{name, definition, section_ref}]` | Stores the unit's 3–12 key concepts, each citing a section of that unit. Only allowed if the unit has none yet |
+| `save_concepts` | `unit_id`, `[{name, definition, section_ref}]` | Stores the unit's 3–15 key concepts (SES-18), each citing a section of that unit. Only allowed if the unit has none yet |
 | `get_weak_concepts` | `limit` | Concepts in read scope with current score ≤ 1, weakest first |
 | `record_assessment` | see below | Stores a study session, marks the unit `studied`, updates the review queue |
 | `get_due_reviews` | `limit` | Due review items with concept, definition, last gap; weakest first (REV-11) |

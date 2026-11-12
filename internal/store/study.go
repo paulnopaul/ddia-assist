@@ -89,6 +89,28 @@ func (s *Store) WeakConcepts(ctx context.Context, bookID int64, limit int) ([]Co
 }
 
 // SaveConcepts stores a unit's key concepts the first time it is studied.
+// MinConcepts and MaxConcepts bound how many concepts a unit may have (MCP table, SES-18).
+const (
+	MinConcepts = 3
+	MaxConcepts = 15
+)
+
+// ConceptRange is the suggested number of concepts for a unit of this size (SES-18). It is a
+// sanity check on a list built from the text, not a target: roughly one concept per section
+// that has real content, and one per 400-1000 words, within MinConcepts..MaxConcepts.
+func (u Unit) ConceptRange() (lo, hi int) {
+	sections := 0
+	for _, sc := range u.Sections {
+		if !sc.IsReference && sc.Words >= 150 {
+			sections++
+		}
+	}
+	clamp := func(n, a, b int) int { return min(max(n, a), b) }
+	lo = clamp(max(sections, u.Words/1000), MinConcepts, MaxConcepts)
+	hi = clamp(max(lo+2, u.Words/400), lo, MaxConcepts)
+	return lo, hi
+}
+
 func (s *Store) SaveConcepts(ctx context.Context, unitID int64, in []ConceptIn) ([]Concept, error) {
 	u, err := s.Unit(ctx, unitID, false)
 	if err != nil {
@@ -105,8 +127,8 @@ func (s *Store) SaveConcepts(ctx context.Context, unitID int64, in []ConceptIn) 
 		return nil, &ValidationError{[]string{fmt.Sprintf("unit %d already has %d concepts; use those (see get_unit)", unitID, len(existing))}}
 	}
 	var problems []string
-	if len(in) < 3 || len(in) > 12 {
-		problems = append(problems, fmt.Sprintf("give 3-12 concepts, got %d", len(in)))
+	if len(in) < MinConcepts || len(in) > MaxConcepts {
+		problems = append(problems, fmt.Sprintf("give %d-%d concepts, got %d", MinConcepts, MaxConcepts, len(in)))
 	}
 	unitSections := map[string]bool{}
 	for _, sc := range u.Sections {
